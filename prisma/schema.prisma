@@ -1,0 +1,126 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// 1. SYSTEM CONFIGURATION (DASHBOARD CONTROL)
+// ==========================================
+
+// Tabel untuk menyimpan settingan global 
+// Admin Dashboard bisa edit ini tanpa coding.
+model AppConfig {
+  key         String   @id // Contoh: "nama_kapolresta"
+  value       String   @db.Text// Isi nama 
+  label       String?  // Label UI: "Nama Kapolresta"
+  category    String?  // Grouping UI: "Pejabat", "System"
+  updatedAt   DateTime @updatedAt
+}
+
+// Tabel untuk menyimpan Template Laporan & Logika Bot
+// Pengganti file .txt dan format-config.js
+model ReportFormat {
+  id          String   @id 
+  name        String   @db.Text
+  description String?
+  
+  // Template teks laporan 
+  template    String   @db.Text
+  
+  // config.json
+  config      Json     
+  
+  isActive    Boolean  @default(true)
+  sessions    RekapSession[] 
+}
+
+// Tabel untuk menyimpan Target Link Prioritas 
+model PriorityLink {
+  id          BigInt      @id @default(autoincrement())
+  keyword     String   @unique // URL atau kata kunci yang dipantau
+  description String?  @db.Text// nama media
+  priority    Int      @default(999)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ==========================================
+// 2. USER & SESSION DATA
+// ==========================================
+
+model Operator {
+  id        BigInt            @id @default(autoincrement())
+  waId      String         @unique // Nomor WA Pengirim
+  sessions  RekapSession[]
+  createdAt DateTime       @default(now())
+}
+
+model RekapSession {
+  id           String         @id @default(uuid())
+  
+  operator     Operator       @relation(fields: [operatorId], references: [id])
+  operatorId   BigInt
+
+  // Relasi ke Format Laporan
+  format       ReportFormat   @relation(fields: [formatId], references: [id])
+  formatId     String
+
+  // Data Inputan User
+  title        String?       @db.Text
+  dateRange    String?
+  state        String         @default("draft") // "draft", "collect_links", "finished"
+  
+  totalLinks   Int            @default(0) 
+  
+  // Snapshot/Backup hasil render template
+  summaryJson  Json?          
+
+  createdAt    DateTime       @default(now())
+  completedAt  DateTime?
+
+  links        Link[]
+}
+
+// ==========================================
+// 3. TRANSACTION DATA (LINKS)
+// ==========================================
+
+model Platform {
+  id        BigInt     @id @default(autoincrement())
+  name      String  @unique 
+  domain    Json? 
+  links     Link[]
+}
+
+model Unit {
+  id        BigInt     @id @default(autoincrement())
+  name      String  @unique 
+  type      String  
+  links     Link[]
+}
+
+model Link {
+  id         BigInt           @id @default(autoincrement())
+  url        String        @db.Text// Support URL panjang
+  
+  // Relasi ke Session (Perhatikan tipe data sessionId harus String/UUID)
+  session    RekapSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId  String 
+
+  // Relasi Master Data
+  platform   Platform      @relation(fields: [platformId], references: [id])
+  platformId BigInt
+
+  unit       Unit?         @relation(fields: [unitId], references: [id])
+  unitId     BigInt?
+
+  // Status Prioritas
+  isPriority Boolean       @default(false)
+  
+  createdAt  DateTime      @default(now())
+}
