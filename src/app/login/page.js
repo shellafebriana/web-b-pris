@@ -8,37 +8,31 @@ import Link from "next/link"
 export default function LoginPage() {
   return (
     <div className="min-h-screen w-full lg:grid lg:grid-cols-2">
-      
-      {/* BAGIAN KIRI: BRANDING (Hanya muncul di layar besar) */}
       <div className="hidden lg:flex flex-col justify-between bg-slate-900 p-10 text-white relative">
         <div className="absolute inset-0 bg-[url('/pattern.png')] opacity-10 mix-blend-overlay"></div>
-        <div className="z-10 flex flex-row items-center gap-5">
-            <div className="flex flex-col justify-center relative w-16 h-16 shrink-0 drop-shadow-lg"> 
-                <Image src="/humas.png" alt="Logo Polresta" fill className="object-contain" priority              
+        <div className="z-10 flex flex-row items-center gap-4">
+            <div className="relative w-16 h-16 shrink-0 drop-shadow-lg"> 
+                <Image src="/logo/humas.png" alt="Logo Polresta" fill className="object-contain" priority              
                 />
             </div>
-            <div className="flex flex-col justify-center text-left">
-             <h1 className="text-2xl font-bold tracking-wide text-white leading-none ">
-               Humas Polresta Banyuwangi
-             </h1>
-           </div>
+            <h1 className="text-2xl font-bold tracking-wide text-white">
+              Humas Polresta Banyuwangi
+            </h1>
         </div>
-        
         <div className="mb-20">
           <blockquote className="space-y-2">
             <p className="text-lg font-medium leading-relaxed">
-              &ldquo;Sistem Integrasi Humas Polresta Banyuwangi (B-PRIS) mempercepat rekapitulasi  digital dan pemantauan media secara real-time demi mewujudkan Polri yang Presisi.&rdquo;
+              &ldquo;Sistem Integrasi Humas Polresta Banyuwangi (B-PRIS) : Transformasi Digital Humas Polresta Banyuwangi dalam mengelola informasi kehumasan dengan cepat, akurat, dan terintegrasi demi mendukung Polri yang Presisi.&rdquo;
             </p>
-            <footer className="text-sm text-slate-400">SIHUMAS Polresta Banyuwangi</footer>
+            <footer className="text-sm text-slate-400">Sihumas Polresta Banyuwangi</footer>
           </blockquote>
         </div>
 
         <div className="text-xs text-slate-500">
-          © 2026 B-LINK Integrated System. Secure Connection.
+          © 2026 Polresta Banyuwangi Public Relation Integration System. Secure Connection.
         </div>
       </div>
 
-      {/* BAGIAN KANAN: FORM LOGIN */}
       <div className="flex items-center justify-center bg-slate-50 p-8">
         <div className="w-full max-w-md space-y-6">
             
@@ -51,19 +45,17 @@ export default function LoginPage() {
                 </div>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">Selamat Datang</h1>
-            <p className="text-slate-500 text-sm">Masuk untuk mengakses Dashboard B-LINK.</p>
+            <p className="text-slate-500 text-sm">Masuk untuk mengakses Dashboard B-PRIS.</p>
           </div>
 
-          {/* Form Container */}
           <Card className="border-none shadow-none bg-transparent lg:bg-white lg:shadow-sm lg:border lg:p-2">
             <CardHeader className="px-0 lg:px-6">
-              {/* Kosongkan header card karena judul sudah di luar */}
             </CardHeader>
             <CardContent className="px-0 lg:px-6 space-y-4">
               
               <div className="space-y-2">
-                <Label htmlFor="nrp">NRP / Username</Label>
-                <Input id="nrp" placeholder="Masukkan NRP anda" type="text" />
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" placeholder="Masukkan Username anda" type="text" />
               </div>
               
               <div className="space-y-2">
