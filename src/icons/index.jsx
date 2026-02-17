@@ -4,6 +4,7 @@ const PlusIcon = (props) =>(
     width="12"
     height="12"
     fill="none"
+    {...props}
     viewBox="0 0 12 12"
   >
     <path
@@ -21,7 +22,8 @@ const CloseIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
-    className="fill-current"
+    {...props}
+    className={`${props.className ? props.className + " " : ""}fill-current`}
     viewBox="0 0 24 24"
   >
     <path
@@ -38,6 +40,7 @@ const BoxIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -55,6 +58,7 @@ const CheckCircleIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -72,6 +76,7 @@ const AlertIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -89,6 +94,7 @@ const InfoIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -106,6 +112,7 @@ const ErrorIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -123,6 +130,7 @@ const BoltIcon = (props) =>(
     width="24"
     height="26"
     fill="none"
+    {...props}
     viewBox="0 0 24 26"
   >
     <path
@@ -141,6 +149,7 @@ const ArrowUpIcon = (props) =>(
     width="13"
     height="12"
     fill="none"
+    {...props}
     viewBox="0 0 13 12"
   >
     <path
@@ -158,6 +167,7 @@ const ArrowDownIcon = (props) =>(
     width="12"
     height="12"
     fill="none"
+    {...props}
     viewBox="0 0 12 12"
   >
     <path
@@ -175,6 +185,7 @@ const FolderIcon = (props) => (
     width="20"
     height="18"
     fill="none"
+    {...props}
     viewBox="0 0 20 18"
   >
     <path
@@ -190,6 +201,7 @@ const VideoIcon = (props) => (
     width="25"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 25 24"
   >
     <path
@@ -207,6 +219,7 @@ const AudioIcon = (props) =>(
     width="25"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 25 24"
   >
     <path
@@ -224,6 +237,7 @@ const GridIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -241,7 +255,8 @@ const FileIcon = (props) =>(
     width="25"
     height="24"
     fill="none"
-    className="fill-current"
+    {...props}
+    className={`${props.className ? props.className + " " : ""}fill-current`}
     viewBox="0 0 25 24"
   >
     <path
@@ -259,7 +274,8 @@ const DownloadIcon =  (props) => (
     width="25"
     height="24"
     fill="none"
-    className="fill-current"
+    {...props}
+    className={`${props.className ? props.className + " " : ""}fill-current`}
     viewBox="0 0 25 24"
   >
     <path
@@ -277,6 +293,7 @@ const ArrowRightIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -294,6 +311,7 @@ const GroupIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -311,6 +329,7 @@ const BoxIconLine = (props) => (
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -328,6 +347,7 @@ const ShootingStarIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -345,6 +365,7 @@ const DollarLineIcon = (props) =>(
     width="25"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 25 24"
   >
     <path
@@ -362,6 +383,7 @@ const TrashBinIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -379,6 +401,7 @@ const AngleUpIcon = (props) =>(
     width="8"
     height="5"
     fill="none"
+    {...props}
     viewBox="0 0 8 5"
   >
     <path
@@ -394,6 +417,7 @@ const AngleDownIcon = (props) =>(
     width="12"
     height="12"
     fill="none"
+    {...props}
     viewBox="0 0 12 12"
   >
     <path
@@ -411,6 +435,7 @@ const PencilIcon = (props) =>(
     width="21"
     height="21"
     fill="none"
+    {...props}
     viewBox="0 0 21 21"
   >
     <path
@@ -428,6 +453,7 @@ const CheckLineIcon = (props) =>(
     width="16"
     height="16"
     fill="none"
+    {...props}
     viewBox="0 0 16 16"
   >
     <path
@@ -446,6 +472,7 @@ const CloseLineIcon = (props) =>(
     width="17"
     height="16"
     fill="none"
+    {...props}
     viewBox="0 0 17 16"
   >
     <path
@@ -463,6 +490,7 @@ const ChevronDownIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -481,6 +509,7 @@ const ChevronUpIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -499,6 +528,7 @@ const PaperPlaneIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -516,6 +546,7 @@ const LockIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -537,6 +568,7 @@ const EnvelopeIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -554,6 +586,7 @@ const UserIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -571,6 +604,7 @@ const CalenderIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -620,6 +654,7 @@ const TimeIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -637,6 +672,7 @@ const CopyIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -654,6 +690,7 @@ const ChevronLeftIcon = (props) =>(
     width="20"
     height="20"
     fill="none"
+    {...props}
     viewBox="0 0 20 20"
   >
     <path
@@ -672,6 +709,7 @@ const UserCircleIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -689,6 +727,7 @@ const TaskIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -706,6 +745,7 @@ const ListIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -723,6 +763,7 @@ const TableIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -740,6 +781,7 @@ const PageIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -757,6 +799,7 @@ const PieChartIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -774,6 +817,7 @@ const BoxCubeIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -791,6 +835,7 @@ const PlugInIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -808,6 +853,7 @@ const DocsIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -825,6 +871,7 @@ const MailIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -842,6 +889,7 @@ const HorizontaLDots = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -859,6 +907,7 @@ const ChatIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -876,6 +925,7 @@ const MoreDotIcon = (props) =>(
     width="24"
     height="24"
     fill="none"
+    {...props}
     viewBox="0 0 24 24"
   >
     <path
@@ -899,6 +949,18 @@ const BellIcon = (props) =>(
   </svg>
 );
 
+const MobilePhoneIcon = (props) =>(
+  <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" 
+    {...props} viewBox="0 0 24 24">
+    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 15h12M6 6h12m-6 12h.01M7 21h10a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1Z"/>
+  </svg>
+)
+
+const GlobeIcon = (props) =>(
+  <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" {...props}>
+    <path fillRule="evenodd" d="M8.64 4.737A7.97 7.97 0 0 1 12 4a7.997 7.997 0 0 1 6.933 4.006h-.738c-.65 0-1.177.25-1.177.9 0 .33 0 2.04-2.026 2.008-1.972 0-1.972-1.732-1.972-2.008 0-1.429-.787-1.65-1.752-1.923-.374-.105-.774-.218-1.166-.411-1.004-.497-1.347-1.183-1.461-1.835ZM6 4a10.06 10.06 0 0 0-2.812 3.27A9.956 9.956 0 0 0 2 12c0 5.289 4.106 9.619 9.304 9.976l.054.004a10.12 10.12 0 0 0 1.155.007h.002a10.024 10.024 0 0 0 1.5-.19 9.925 9.925 0 0 0 2.259-.754 10.041 10.041 0 0 0 4.987-5.263A9.917 9.917 0 0 0 22 12a10.025 10.025 0 0 0-.315-2.5A10.001 10.001 0 0 0 12 2a9.964 9.964 0 0 0-6 2Zm13.372 11.113a2.575 2.575 0 0 0-.75-.112h-.217A3.405 3.405 0 0 0 15 18.405v1.014a8.027 8.027 0 0 0 4.372-4.307ZM12.114 20H12A8 8 0 0 1 5.1 7.95c.95.541 1.421 1.537 1.835 2.415.209.441.403.853.637 1.162.54.712 1.063 1.019 1.591 1.328.52.305 1.047.613 1.6 1.316 1.44 1.825 1.419 4.366 1.35 5.828Z" clipRule="evenodd"/>
+  </svg>
+)
 
 export {
   DownloadIcon,
@@ -954,4 +1016,6 @@ export {
   HorizontaLDots,
   ChevronUpIcon,
   ChatIcon,
+  MobilePhoneIcon,
+  GlobeIcon
 };

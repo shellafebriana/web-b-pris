@@ -124,3 +124,17 @@ model Link {
   
   createdAt  DateTime      @default(now())
 }
+
+// ==========================================
+// 4. AUTHENTICATION & USER MANAGEMENT
+// ==========================================
+model User {
+  id        BigInt    @id @default(autoincrement())
+  username  String    @unique @db.VarChar(100)
+  password  String    @db.Text
+  email     String?   @unique @db.VarChar(255)
+  role      String    @default("admin") // "admin" atau "operator"
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
