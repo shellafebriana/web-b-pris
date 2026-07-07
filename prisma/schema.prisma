@@ -1,4 +1,3 @@
-// schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,133 +7,113 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==========================================
-// 1. SYSTEM CONFIGURATION (DASHBOARD CONTROL)
-// ==========================================
-
-// Tabel untuk menyimpan settingan global 
-// Admin Dashboard bisa edit ini tanpa coding.
 model AppConfig {
-  key         String   @id // Contoh: "nama_kapolresta"
-  value       String   @db.Text// Isi nama 
-  label       String?  // Label UI: "Nama Kapolresta"
-  category    String?  // Grouping UI: "Pejabat", "System"
-  updatedAt   DateTime @updatedAt
+  key       String   @id
+  value     String   @db.Text
+  label     String?
+  category  String?
+  updatedAt DateTime @updatedAt
 }
 
-// Tabel untuk menyimpan Template Laporan & Logika Bot
-// Pengganti file .txt dan format-config.js
 model ReportFormat {
-  id          String   @id 
-  name        String   @db.Text
+  id          String         @id
+  name        String         @db.Text
   description String?
-  
-  // Template teks laporan 
-  template    String   @db.Text
-  
-  // config.json
-  config      Json     
-  
-  isActive    Boolean  @default(true)
-  sessions    RekapSession[] 
+  template    String         @db.Text
+  config      Json
+  isActive    Boolean        @default(true)
+  sessions    RekapSession[]
 }
 
-// Tabel untuk menyimpan Target Link Prioritas 
 model PriorityLink {
-  id          BigInt      @id @default(autoincrement())
-  keyword     String   @unique // URL atau kata kunci yang dipantau
-  description String?  @db.Text// nama media
+  id          BigInt   @id @default(autoincrement())
+  keyword     String   @unique
+  description String?  @db.Text
   priority    Int      @default(999)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 }
 
-// ==========================================
-// 2. USER & SESSION DATA
-// ==========================================
-
 model Operator {
-  id        BigInt            @id @default(autoincrement())
-  waId      String         @unique // Nomor WA Pengirim
-  sessions  RekapSession[]
+  id        BigInt         @id @default(autoincrement())
+  waId      String         @unique
   createdAt DateTime       @default(now())
+  sessions  RekapSession[]
 }
 
 model RekapSession {
-  id           String         @id @default(uuid())
-  
-  operator     Operator       @relation(fields: [operatorId], references: [id])
-  operatorId   BigInt
+  id          String       @id @default(uuid())
+  operatorId  BigInt
+  formatId    String
+  title       String?      @db.Text
+  dateRange   String?
+  state       String       @default("draft")
+  totalLinks  Int          @default(0)
+  summaryJson Json?
+  createdAt   DateTime     @default(now())
+  completedAt DateTime?
+  links       Link[]
+  format      ReportFormat @relation(fields: [formatId], references: [id])
+  operator    Operator     @relation(fields: [operatorId], references: [id])
 
-  // Relasi ke Format Laporan
-  format       ReportFormat   @relation(fields: [formatId], references: [id])
-  formatId     String
-
-  // Data Inputan User
-  title        String?       @db.Text
-  dateRange    String?
-  state        String         @default("draft") // "draft", "collect_links", "finished"
-  
-  totalLinks   Int            @default(0) 
-  
-  // Snapshot/Backup hasil render template
-  summaryJson  Json?          
-
-  createdAt    DateTime       @default(now())
-  completedAt  DateTime?
-
-  links        Link[]
+  @@index([formatId], map: "RekapSession_formatId_fkey")
+  @@index([operatorId], map: "RekapSession_operatorId_fkey")
 }
 
-// ==========================================
-// 3. TRANSACTION DATA (LINKS)
-// ==========================================
-
 model Platform {
-  id        BigInt     @id @default(autoincrement())
-  name      String  @unique 
-  domain    Json? 
-  links     Link[]
+  id     BigInt @id @default(autoincrement())
+  name   String @unique
+  domain Json?
+  links  Link[]
 }
 
 model Unit {
-  id        BigInt     @id @default(autoincrement())
-  name      String  @unique 
-  type      String  
-  links     Link[]
+  id    BigInt @id @default(autoincrement())
+  name  String @unique
+  type  String
+  links Link[]
 }
 
 model Link {
-  id         BigInt           @id @default(autoincrement())
-  url        String        @db.Text// Support URL panjang
-  
-  // Relasi ke Session (Perhatikan tipe data sessionId harus String/UUID)
-  session    RekapSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  sessionId  String 
-
-  // Relasi Master Data
-  platform   Platform      @relation(fields: [platformId], references: [id])
+  id         BigInt       @id @default(autoincrement())
+  url        String       @db.Text
+  sessionId  String
   platformId BigInt
-
-  unit       Unit?         @relation(fields: [unitId], references: [id])
   unitId     BigInt?
+  isPriority Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  platform   Platform     @relation(fields: [platformId], references: [id])
+  session    RekapSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  unit       Unit?        @relation(fields: [unitId], references: [id])
 
-  // Status Prioritas
-  isPriority Boolean       @default(false)
-  
-  createdAt  DateTime      @default(now())
+  @@index([platformId], map: "Link_platformId_fkey")
+  @@index([sessionId], map: "Link_sessionId_fkey")
+  @@index([unitId], map: "Link_unitId_fkey")
 }
 
-// ==========================================
-// 4. AUTHENTICATION & USER MANAGEMENT
-// ==========================================
 model User {
-  id        BigInt    @id @default(autoincrement())
-  username  String    @unique @db.VarChar(100)
-  password  String    @db.Text
-  email     String?   @unique @db.VarChar(255)
-  role      String    @default("admin") // "admin" atau "operator"
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        BigInt   @id @default(autoincrement())
+  username  String   @unique @db.VarChar(100)
+  password  String   @db.Text
+  email     String?  @unique @db.VarChar(255)
+  role      String   @default("admin")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BaileysSession {
+  id        String   @id
+  value     String   @db.Text
+  updatedAt DateTime
+}
+
+model CustomDocument {
+  id        String   @id
+  name      String
+  paperSize String   @default("f4")
+  orient    String   @default("landscape")
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime
 }
