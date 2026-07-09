@@ -64,6 +64,7 @@ model Platform {
   id     BigInt @id @default(autoincrement())
   name   String @unique
   domain Json?
+  category String @default("online") // "sosmed" | "online"
   links  Link[]
 }
 

@@ -4,8 +4,8 @@ import { useSidebar } from "@/context/SidebarProvider";
 import AppHeader from "@/components/layout/AppHeader";
 import AppSidebar from "@/components/layout/AppSidebar";
 import Backdrop from "@/components/layout/Backdrop";
+import { ToastProvider } from "@/context/ToastProvider";
 import React from "react";
-import { AdminOnly } from "@/components/ProtectedRoute";
 
 export default function AdminLayout({ children }) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
@@ -18,7 +18,7 @@ export default function AdminLayout({ children }) {
     : "lg:ml-[90px]";
 
   return (
-    <AdminOnly>
+    <ToastProvider>
       <div className="min-h-screen xl:flex">
         {/* Sidebar and Backdrop */}
         <AppSidebar />
@@ -33,6 +33,6 @@ export default function AdminLayout({ children }) {
           <div className="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">{children}</div>
         </div>
       </div>
-    </AdminOnly>
+    </ToastProvider>
   );
 }

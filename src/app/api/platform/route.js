@@ -96,12 +96,18 @@ export async function POST(req) {
       )
     }
 
-    const { name, domain } = await req.json()
+    const { name, domain, category } = await req.json()
 
-    // Validation
     if (!name) {
       return NextResponse.json(
         { error: 'Nama platform harus diisi' },
+        { status: 400 }
+      )
+    }
+
+    if (category && !['sosmed', 'online'].includes(category)) {
+      return NextResponse.json(
+        { error: 'Category harus salah satu dari: sosmed, online' },
         { status: 400 }
       )
     }
@@ -110,6 +116,7 @@ export async function POST(req) {
       data: {
         name,
         domain: domain || null,
+        category: category || 'online',
       },
     })
 

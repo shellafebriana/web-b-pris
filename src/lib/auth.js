@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+import { cookies } from 'next/headers'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this'
 const TOKEN_EXPIRY = '24h'
@@ -35,4 +36,18 @@ export function hashPassword(password) {
 export function comparePassword(password, hash) {
   // Simple compare - untuk production gunakan bcrypt
   return Buffer.from(password).toString('base64') === hash
+}
+
+// Dipakai di Server Component / Server Action buat baca user yang login
+// lewat cookie httpOnly (bukan localStorage, karena server gak bisa akses itu)
+export async function getAuthUser() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('token')?.value
+
+  if (!token) return null
+
+  const verification = verifyToken(token)
+  if (!verification.valid) return null
+
+  return verification.data // { id, username, role }
 }

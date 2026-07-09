@@ -78,13 +78,21 @@ export async function PUT(req, { params }) {
       )
     }
 
-    const { name, domain } = await req.json()
+    const { name, domain, category } = await req.json()
+
+    if (category && !['sosmed', 'online'].includes(category)) {
+      return NextResponse.json(
+        { error: 'Category harus salah satu dari: sosmed, online' },
+        { status: 400 }
+      )
+    }
 
     const platform = await prisma.platform.update({
       where: { id: parseInt(id) },
       data: {
         name: name || undefined,
         domain: domain || undefined,
+        category: category || undefined,
       },
     })
 

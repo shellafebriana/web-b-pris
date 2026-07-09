@@ -42,7 +42,7 @@ export async function POST(req) {
       role: user.role,
     })
 
-    return NextResponse.json(
+    const response =  NextResponse.json(
       {
         message: 'Login berhasil',
         token,
@@ -54,6 +54,16 @@ export async function POST(req) {
       },
       { status: 200 }
     )
+
+    response.cookies.set('token', token, {
+      httpOnly: true, // JS di browser gak bisa baca cookie ini — lebih aman dari XSS
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // samain sama expiry JWT (24 jam)
+      path: '/',
+    })
+
+    return response
   } catch (error) {
     console.error('Login error:', error)
     return NextResponse.json(

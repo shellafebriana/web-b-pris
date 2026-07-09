@@ -1,5 +1,3 @@
-"use client";
-import React from "react";
 import { DownloadIcon, DocsIcon, MobilePhoneIcon, GlobeIcon} from "@/icons";
 import { formatNumber } from '@/lib/format-number'
 

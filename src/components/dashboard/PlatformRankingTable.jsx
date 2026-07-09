@@ -1,7 +1,3 @@
-'use client'
-
-import React from 'react'
-
 const PlatformRankingTable = ({ data }) => {
   const now = new Date()
   const month = now.getMonth()
