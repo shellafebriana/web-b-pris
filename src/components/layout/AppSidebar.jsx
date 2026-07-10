@@ -20,10 +20,9 @@ import {
 
 const navItems = [
   
-  {
-    icon: <GridIcon />, name: "Dashboard", path: "/dashboard",
-  },
+  { icon: <GridIcon />, name: "Dashboard", path: "/dashboard"},
   { icon: <BoxCubeIcon />, name: "Platform", path: "/platform" },
+  { icon: <ListIcon />, name: "Unit", path: "/unit" },
   
 ];
 

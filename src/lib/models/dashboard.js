@@ -112,7 +112,7 @@ export async function getUnitRanking() {
   const { startOfMonth, endOfMonth } = getMonthRange()
 
   const units = await prisma.unit.findMany({
-    where: { type: 'polsek' },
+    where: { type: 'POLSEK' },
     include: {
       _count: {
         select: {
