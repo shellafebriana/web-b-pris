@@ -24,6 +24,7 @@ const navItems = [
   { icon: <BoxCubeIcon />, name: "Platform", path: "/platform" },
   { icon: <ListIcon />, name: "Unit", path: "/unit" },
   { icon: <PageIcon />, name: "Format Rekap", path: "/format-rekap" },
+  { icon: <PlugInIcon />, name: "Link Prioritas", path: "/link-prioritas" },
 ];
 
 
