@@ -15,6 +15,9 @@ export default async function UnitPage() {
     <div>
       <div className="mb-6">
         <h1 className="text-title-sm font-bold text-gray-800 dark:text-white">Kelola Unit</h1>
+         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Daftar unit buat pengelompokan link amplifikasi
+        </p>
       </div>
 
       <UnitList units={units} />

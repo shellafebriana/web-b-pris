@@ -17,6 +17,9 @@ export default async function PlatformPage() {
         <h1 className="text-title-sm font-bold text-gray-800 dark:text-white">
           Kelola Platform
         </h1>
+         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {platforms.length} platform terdaftar
+        </p>
       </div>
 
       <PlatformList platforms={platforms} />
