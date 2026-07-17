@@ -25,6 +25,7 @@ const navItems = [
   { icon: <ListIcon />, name: "Unit", path: "/unit" },
   { icon: <PageIcon />, name: "Format Rekap", path: "/format-rekap" },
   { icon: <PlugInIcon />, name: "Link Prioritas", path: "/link-prioritas" },
+  { icon: <TableIcon />, name: "Sesi Rekap", path: "/sesi-rekap" },
 ];
 
 

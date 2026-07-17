@@ -7,6 +7,7 @@ export async function getAllReportFormatsList() {
     name: f.name,
     description: f.description,
     isActive: f.isActive,
+    config: f.config,
   }))
 }
 

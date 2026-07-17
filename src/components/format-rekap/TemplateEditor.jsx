@@ -19,7 +19,11 @@ const DUMMY = {
   title: 'Kegiatan Ketahanan Pangan Polri Bersama Masyarakat',
   pejabat: 'KOMBES POL Dr. ROFIQ RIPTO HIMAWAN S.I.K., M.H.',
   count: 14,
-  urls: ['https://instagram.com/p/bwi-001', 'https://facebook.com/bwi-002', 'https://tiktok.com/v/rjm-001'],
+  urls: [
+    '1. https://instagram.com/p/bwi-001',
+    '2. https://facebook.com/bwi-002',
+    '3. https://tiktok.com/v/rjm-001',
+  ],
   units: [
     {
       name: 'Polsek Banyuwangi',
