@@ -38,8 +38,8 @@ export default function GenerateReportPanel({ sessionId, initialText, hasLinks }
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
+    <div className="flex flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3" style={{ maxHeight: 'calc(60vh + 100px)' }}>
+      <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
         <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Hasil Laporan</span>
         {text && (
           <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
@@ -48,7 +48,7 @@ export default function GenerateReportPanel({ sessionId, initialText, hasLinks }
         )}
       </div>
 
-      <div className="max-h-96 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4">
         {text ? (
           <pre className="min-w-0 whitespace-pre-wrap wrap-break-word font-sans text-sm leading-relaxed text-gray-800 dark:text-gray-200">
             {text}
@@ -60,7 +60,7 @@ export default function GenerateReportPanel({ sessionId, initialText, hasLinks }
         )}
       </div>
 
-      <div className="flex gap-3 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
+      <div className="flex shrink-0 gap-3 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
         <button
           onClick={handleGenerate}
           disabled={isPending || !hasLinks}
