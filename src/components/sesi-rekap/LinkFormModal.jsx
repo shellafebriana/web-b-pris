@@ -4,7 +4,7 @@ import { useState, useActionState, useEffect } from 'react'
 import { PlusIcon, PencilIcon, CloseIcon } from '@/icons'
 import { addLinkManualAction, updateLinkAction } from '@/app/(admin)/sesi-rekap/actions'
 import { useToast } from '@/context/ToastProvider'
-import { detectPlatformId } from '@/lib/platform-detect'
+import { detectPlatformIdWithFallback } from '@/lib/platform-detect'
 import SearchableUnitSelect from './SearchableUnitSelect'
 
 const initialState = { error: null, success: false }
@@ -43,7 +43,7 @@ export default function LinkFormModal({
   }, [state])
 
   // Live-deteksi platform dari domain URL — cuma jalan pas mode create
-  const detectedId = mode === 'create' && url.trim() ? detectPlatformId(url.trim(), platforms) : null
+  const detectedId = mode === 'create' && url.trim() ? detectPlatformIdWithFallback(url.trim(), platforms) : null
   const detected = detectedId ? platforms.find((p) => p.id === detectedId) : null
   const detectedIsAllowed = detected ? allowedPlatforms.some((p) => p.id === detected.id) : true
 

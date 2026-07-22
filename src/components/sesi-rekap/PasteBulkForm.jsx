@@ -4,7 +4,8 @@ import { useState, useMemo, useActionState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { addLinksBulkAction } from '@/app/(admin)/sesi-rekap/actions'
 import { useToast } from '@/context/ToastProvider'
-import { detectPlatformId } from '@/lib/platform-detect'
+import { detectPlatformIdWithFallback } from '@/lib/platform-detect'
+import { preprocessRaw, parseWaLine, detectUnitFromSender } from '@/lib/wa-paste-parser'
 import SearchableUnitSelect from './SearchableUnitSelect'
 
 const initialState = { error: null }
@@ -32,16 +33,58 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
   }, [state])
 
   const parsed = useMemo(() => {
-    const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean)
+    const preprocessed = preprocessRaw(raw)
+    const lines = preprocessed.split('\n').map((l) => l.trim()).filter(Boolean)
     const items = []
     let currentUnitId = null
     let currentUnitName = null
     let ignoredCount = 0
 
     for (const line of lines) {
+      // ── Coba parse sebagai format WhatsApp dulu ──
+      const waResult = parseWaLine(line)
+      if (waResult) {
+        if (waResult.type === 'wa_no_url') {
+          ignoredCount++
+          continue
+        }
+
+        // wa_url: ada URL + sender
+        const url = waResult.url
+
+        // Deteksi unit dari nama pengirim (kalau format butuh unit)
+        if (requiresUnit) {
+          const senderUnit = detectUnitFromSender(waResult.sender, units)
+          if (senderUnit) {
+            currentUnitId = senderUnit.id
+            currentUnitName = senderUnit.name
+          }
+        }
+
+        // Deteksi platform (dengan fallback ke "Lainnya")
+        const detectedId = detectPlatformIdWithFallback(url, platforms)
+        const detectedPlatform = detectedId ? platforms.find((p) => p.id === detectedId) : null
+        const detectedAllowed = detectedPlatform ? allowedPlatforms.some((p) => p.id === detectedPlatform.id) : true
+
+        const platformId = detectedId && detectedAllowed ? detectedId : defaultPlatformId || ''
+        const unitId = requiresUnit ? currentUnitId || defaultUnitId || '' : ''
+
+        items.push({
+          url,
+          platformId,
+          unitId: unitId || null,
+          _platformName: allowedPlatforms.find((p) => p.id === platformId)?.name || null,
+          _unitName: requiresUnit ? (currentUnitName || null) : null,
+          _conflictName: detectedPlatform && !detectedAllowed ? detectedPlatform.name : null,
+        })
+        continue
+      }
+
+      // ── Bukan format WA — fallback ke parsing biasa ──
+      const stripped = line.replace(/^\d+\.\s*/, '')
       if (!line.startsWith('http')) {
         if (requiresUnit) {
-          const found = units.find((u) => u.name.toLowerCase() === line.toLowerCase())
+          const found = units.find((u) => u.name.toLowerCase() === stripped.toLowerCase())
           if (found) {
             currentUnitId = found.id
             currentUnitName = found.name
@@ -52,7 +95,8 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
         continue
       }
 
-      const detectedId = detectPlatformId(line, platforms)
+      // Plain URL
+      const detectedId = detectPlatformIdWithFallback(stripped, platforms)
       const detectedPlatform = detectedId ? platforms.find((p) => p.id === detectedId) : null
       const detectedAllowed = detectedPlatform ? allowedPlatforms.some((p) => p.id === detectedPlatform.id) : true
 
@@ -60,11 +104,11 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
       const unitId = requiresUnit ? currentUnitId || defaultUnitId || '' : ''
 
       items.push({
-        url: line,
+        url: stripped,
         platformId,
         unitId: unitId || null,
         _platformName: allowedPlatforms.find((p) => p.id === platformId)?.name || null,
-        _unitName: requiresUnit ? currentUnitName : null,
+        _unitName: requiresUnit ? (currentUnitName || null) : null,
         _conflictName: detectedPlatform && !detectedAllowed ? detectedPlatform.name : null,
       })
     }
@@ -99,25 +143,25 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
         <div className="flex w-1/2 flex-col border-r border-gray-200 dark:border-gray-800">
           <div className="flex-1 overflow-y-auto p-5">
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Paste URL (satu baris satu link)
+              Paste URL (satu baris satu link, atau langsung dari chat WhatsApp)
             </label>
             <textarea
               value={raw}
               onChange={(e) => setRaw(e.target.value)}
               placeholder={
                 requiresUnit
-                  ? 'TANJUNGWANGI\nhttps://instagram.com/p/abc1\nhttps://facebook.com/abc1\nSINGOJURUH\nhttps://instagram.com/p/abc2'
-                  : 'https://instagram.com/p/abc1\nhttps://facebook.com/abc1\nhttps://x.com/abc2'
+                  ? 'TANJUNGWANGI\nhttps://instagram.com/p/abc1\nhttps://facebook.com/abc1\n\natau langsung dari WhatsApp:\n[18.34, 21/7/2026] Humas Polsek Glenmore: https://...'
+                  : 'https://instagram.com/p/abc1\nhttps://facebook.com/abc1\nhttps://x.com/abc2\n\natau langsung dari WhatsApp:\n[18.34, 21/7/2026] Operator: https://...'
               }
               className="min-h-48 w-full flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 resize-none"
             />
             <p className="mt-1.5 text-xs text-gray-400">
-              Platform otomatis terdeteksi dari domain URL{platformsRestricted ? ', dibatasi sesuai format sesi ini' : ''}.
-              {requiresUnit && ' Tulis nama unit di barisnya sendiri sebelum link-link unit tersebut.'}
+              Platform otomatis terdeteksi dari domain URL (domain gak dikenal → Lainnya){platformsRestricted ? ', dibatasi sesuai format sesi ini' : ''}.
+              {requiresUnit && ' Unit terdeteksi dari nama pengirim WhatsApp, atau tulis nama unit di barisnya sendiri.'}
             </p>
             {ignoredCount > 0 && (
               <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                {ignoredCount} baris diabaikan (bukan URL{requiresUnit ? ' atau nama unit yang dikenali' : ''})
+                {ignoredCount} baris diabaikan (gak ada URL{requiresUnit ? ' atau nama unit yang dikenali' : ''})
               </p>
             )}
 

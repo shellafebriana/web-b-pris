@@ -11,6 +11,7 @@ import {
   deleteLink,
   createRekapSession,
   generateReport,
+  createBulkRekapSessions,
 } from '@/lib/models/rekapSession'
 
 async function requireAdmin() {
@@ -129,3 +130,32 @@ export async function addLinksBulkAction(sessionId, prevState, formData) {
   return { success: true, added: result.added, duplicates: result.duplicates, conflicts: result.conflicts }
 }
 
+export async function importBulkMediaOnlineAction(prevState, formData) {
+  await requireAdmin()
+
+  const formatId = formData.get('formatId')
+  let groups
+  try {
+    groups = JSON.parse(formData.get('groups'))
+  } catch {
+    return { error: 'Data tidak valid' }
+  }
+
+  try {
+    const results = await createBulkRekapSessions(formatId, groups)
+    revalidatePath('/sesi-rekap')
+    const created = results.filter((r) => !r.isExisting)
+    const appended = results.filter((r) => r.isExisting)
+    const totalSkipped = results.reduce((sum, r) => sum + (r.skipped || 0), 0)
+
+    return {
+      success: true,
+      count: results.length,
+      created: created.length,
+      appended: appended.length,
+      totalSkipped,
+    }
+   } catch (error) {
+    return { error: error.message }
+  }
+}
