@@ -65,7 +65,7 @@ export async function updateLinkAction(linkId, sessionId, prevState, formData) {
   const unitId = formData.get('unitId')
 
   try {
-    await updateLink(linkId, { url, unitId: unitId || null })
+    await updateLink(linkId, sessionId, { url, unitId: unitId || null })
   } catch (error) {
     return { error: error.message }
   }
@@ -134,6 +134,7 @@ export async function importBulkMediaOnlineAction(prevState, formData) {
   await requireAdmin()
 
   const formatId = formData.get('formatId')
+  const dateRange = formData.get('dateRange')
   let groups
   try {
     groups = JSON.parse(formData.get('groups'))
@@ -142,18 +143,24 @@ export async function importBulkMediaOnlineAction(prevState, formData) {
   }
 
   try {
-    const results = await createBulkRekapSessions(formatId, groups)
+    const results = await createBulkRekapSessions(formatId, groups, dateRange)
     revalidatePath('/sesi-rekap')
-    const created = results.filter((r) => !r.isExisting)
-    const appended = results.filter((r) => r.isExisting)
-    const totalSkipped = results.reduce((sum, r) => sum + (r.skipped || 0), 0)
-
+   const succeeded = results.filter((r) => !r.error)
+   const failed = results.filter((r) => r.error)
+   const created = succeeded.filter((r) => !r.isExisting)
+   const appended = succeeded.filter((r) => r.isExisting)
+   const totalSkipped = succeeded.reduce((sum, r) => sum + (r.skipped || 0), 0)
+   const totalInvalidPlatform = succeeded.reduce((sum, r) => sum + (r.invalidPlatformSkipped || 0), 0)
+ 
     return {
       success: true,
-      count: results.length,
+      count: succeeded.length,
       created: created.length,
       appended: appended.length,
       totalSkipped,
+      totalInvalidPlatform,
+      failedCount: failed.length,
+      failedTitles: failed.map((r) => r.title),
     }
    } catch (error) {
     return { error: error.message }

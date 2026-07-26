@@ -109,7 +109,7 @@ export default function SessionLinksList({
               </span>
               <span className="min-w-0 flex-1 truncate font-mono text-gray-500 dark:text-gray-400">{link.url}</span>
               {link.unit && <span className="shrink-0 text-gray-300 dark:text-gray-600">{link.unit.name}</span>}
-              <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
                 <LinkFormModal
                   mode="edit"
                   sessionId={sessionId}

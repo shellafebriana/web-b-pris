@@ -1,7 +1,14 @@
 import prisma from '@/lib/prisma'
 import Mustache from 'mustache'
 import { getAppConfigValue } from './appConfig'
-import { detectPlatformIdWithFallback } from '@/lib/platform-detect'
+import { normalizeUrl } from '@/lib/url-utils'
+import {
+  detectPlatformIdWithFallback,
+  isPlatformAllowed,
+  filterPlatformsByFormat,
+} from '@/lib/platform-detect'
+
+export { filterPlatformsByFormat }
 
 Mustache.escape = (text) => text
 
@@ -31,8 +38,6 @@ export async function getAllRekapSessions({ search = '', state = '', formatId = 
     data: sessions.map((s) => ({
       id: s.id,
       title: s.title,
-      dateRange: s.dateRange,
-      createdAt: s.createdAt,
       state: s.state,
       totalLinks: s.totalLinks,
       formatName: s.format?.name ?? '-',
@@ -97,7 +102,6 @@ export async function updateRekapSessionInfo(id, { title, dateRange }) {
   return { id: session.id }
 }
 
-// URL "kedeteksi" platform lain (BEDA dari yang dipilih) -> kemungkinan besar salah pilih
 function findConflictingPlatform(url, selectedPlatformId, allPlatforms) {
   const detectedId = detectPlatformIdWithFallback(url, allPlatforms)
   if (!detectedId || detectedId === String(selectedPlatformId)) return null
@@ -122,9 +126,8 @@ export async function addLinksToSession(sessionId, items) {
     domain: p.domain,
   }))
 
-  const normalize = (url) => url.trim().replace(/\/+$/, '')
   const existing = await prisma.link.findMany({ where: { sessionId }, select: { url: true } })
-  const existingUrls = new Set(existing.map((l) => normalize(l.url)))
+  const existingUrls = new Set(existing.map((l) => normalizeUrl(l.url)))
 
   const seenInBatch = new Set()
   const toInsert = []
@@ -132,7 +135,7 @@ export async function addLinksToSession(sessionId, items) {
   const conflicts = []
 
   for (const item of items) {
-    const normalized = normalize(item.url)
+    const normalized = normalizeUrl(item.url)
     if (existingUrls.has(normalized) || seenInBatch.has(normalized)) {
       duplicates.push(item.url)
       continue
@@ -150,13 +153,13 @@ export async function addLinksToSession(sessionId, items) {
 
   if (toInsert.length === 0) {
     if (conflicts.length === 1 && duplicates.length === 0) {
-      throw new Error(`URL ini kedeteksi dari ${conflicts[0].detected}, bukan platform yang dipilih. Cek lagi ya.`)
+      throw new Error(`URL ini terdeteksi dari ${conflicts[0].detected}, bukan platform yang dipilih.`)
     }
     if (conflicts.length > 0) {
-      throw new Error(`${conflicts.length} link platform-nya gak cocok sama domain URL-nya.`)
+      throw new Error(`${conflicts.length} link platform-nya tidak cocok dengan domain URL-nya.`)
     }
     throw new Error(
-      items.length === 1 ? 'Link ini udah ada di sesi ini' : `Semua ${items.length} link yang di-paste udah ada di sesi ini`
+      items.length === 1 ? 'Link ini telah tersedia pada sesi ini' : `Semua ${items.length} link yang di-paste telah tersedia pada sesi ini`
     )
   }
 
@@ -178,27 +181,72 @@ export async function addLinksToSession(sessionId, items) {
   return { added: toInsert.length, duplicates, conflicts }
 }
 
-export async function updateLink(linkId, { url, unitId }) {
+export async function updateLink(linkId, sessionId, { url, unitId }) {
   if (!url?.trim()) throw new Error('URL tidak boleh kosong')
 
-  const link = await prisma.link.update({
-    where: { id: BigInt(linkId) },
+  const currentLink = await prisma.link.findFirst({
+    where: { id: BigInt(linkId), sessionId },
+  })
+  if (!currentLink) throw new Error('Link tidak ditemukan di sesi ini')
+
+  const normalized = normalizeUrl(url)
+
+  // Dedup: URL baru gak boleh nabrak link LAIN di sesi ini
+  const others = await prisma.link.findMany({
+    where: { sessionId, id: { not: BigInt(linkId) } },
+    select: { url: true },
+  })
+  const otherUrls = new Set(others.map((l) => normalizeUrl(l.url)))
+  if (otherUrls.has(normalized)) {
+    throw new Error('URL ini telah dipakai link lain di sesi ini')
+  }
+
+  // Platform mismatch: form edit gak punya field platform (platform link
+  // dianggap tetap), jadi kalau URL barunya kedeteksi dari domain platform
+  // lain, itu tanda kemungkinan salah paste — bukan ganti platform beneran
+  const allPlatforms = (await prisma.platform.findMany()).map((p) => ({
+    id: p.id.toString(),
+    name: p.name,
+    domain: p.domain,
+  }))
+  const conflict = findConflictingPlatform(url, currentLink.platformId.toString(), allPlatforms)
+  if (conflict) {
+    throw new Error(
+      `URL ini terdeteksi dari ${conflict.name}, bukan platform link ini. Hapus link ini terus tambah ulang untuk ganti platform.`
+    )
+  }
+
+
+  const result = await prisma.link.updateMany({
+    where: { id: BigInt(linkId), sessionId },
     data: {
       url: url.trim(),
       unitId: unitId ? BigInt(unitId) : null,
     },
   })
-  return { id: link.id.toString() }
+
+  if (result.count === 0) {
+    throw new Error('Link tidak ditemukan di sesi ini')
+  }
+
+  return { id: linkId }
 }
 
 export async function deleteLink(linkId, sessionId) {
-  await prisma.$transaction([
-    prisma.link.delete({ where: { id: BigInt(linkId) } }),
-    prisma.rekapSession.update({
+  await prisma.$transaction(async (tx) => {
+    const deleted = await tx.link.deleteMany({
+      where: { id: BigInt(linkId), sessionId },
+    })
+
+    if (deleted.count === 0) {
+      throw new Error('Link tidak ditemukan di sesi ini')
+    }
+
+    await tx.rekapSession.update({
       where: { id: sessionId },
       data: { totalLinks: { decrement: 1 } },
-    }),
-  ])
+    })
+  })
 }
 
 const WEB_DEFAULT_OPERATOR_WA_ID = process.env.WEB_DEFAULT_OPERATOR_WA_ID
@@ -226,25 +274,209 @@ export async function createRekapSession({ formatId, title, dateRange }) {
     create: { waId: WEB_DEFAULT_OPERATOR_WA_ID },
   })
 
-  const session = await prisma.rekapSession.create({
-    data: {
-      formatId,
-      operatorId: operator.id,
-      title: title?.trim() || null,
-      dateRange: dateRange?.trim() || null,
+  try {
+    const session = await prisma.rekapSession.create({
+      data: {
+        formatId,
+        operatorId: operator.id,
+        title: title?.trim() || null,
+        dateRange: dateRange?.trim() || null,
+      },
+    })
+    return { id: session.id }
+  } catch (error) {
+    if (error.code === 'P2002') {
+      throw new Error('Sudah ada sesi dengan judul yang sama buat format ini')
+    }
+    throw error
+  }
+}
+
+// ── Bulk import (Media Online) ──
+
+// Insert per-chunk — ngindarin query kelewat gede (max_allowed_packet MySQL)
+// pas 1 grup artikel bisa punya ratusan/ribuan link sekaligus
+async function insertLinksInChunks(tx, sessionId, items, chunkSize = 300) {
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize)
+    await tx.link.createMany({
+      data: chunk.map((item) => ({
+        url: item.url.trim(),
+        sessionId,
+        platformId: BigInt(item.platformId),
+        unitId: item.unitId ? BigInt(item.unitId) : null,
+      })),
+    })
+  }
+}
+
+// 1 grup = 1 transaction TERPISAH (bukan digabung semua grup dalam 1 transaction
+// raksasa) — biar gak nabrak default timeout Prisma & biar grup lain tetep kesimpen
+// kalau 1 grup gagal
+async function processGroup(group, formatId, operatorId, config, dateRange, platformNameById, attempt = 0) {
+  const titleTrimmed = group.title?.trim() || ''
+  if (config.requiredFields?.includes('title') && !titleTrimmed) {
+    throw new Error('Judul wajib diisi (ada grup tanpa judul)')
+  }
+
+  // Cross-check server-side: platformId yang dikirim client harus beneran
+  // termasuk platform yang diizinin format ini — jaga-jaga kalau ada yang
+  // lolos dari validasi client (misal request langsung, bukan lewat UI)
+  const validLinks = group.links.filter((l) => isPlatformAllowed(platformNameById.get(l.platformId) || '', config))
+  const invalidPlatformSkipped = group.links.length - validLinks.length
+
+  if (validLinks.length === 0) {
+    throw new Error(`Semua link di "${titleTrimmed || '(tanpa judul)'}" platform-nya tidak sesuai format ini`)
+  }
+
+  // Dedup dalam batch itu sendiri — link yang sama ke-paste 2x buat 1 artikel
+  // (misal salah copy), bukan cuma dedup terhadap sesi yang udah ada di database
+  const seenInBatch = new Set()
+  const dedupedLinks = []
+  let internalDuplicates = 0
+  for (const link of validLinks) {
+    const normalized = normalizeUrl(link.url)
+    if (seenInBatch.has(normalized)) {
+      internalDuplicates++
+      continue
+    }
+    seenInBatch.add(normalized)
+    dedupedLinks.push(link)
+  }
+
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const existing = titleTrimmed
+          ? await tx.rekapSession.findFirst({
+              where: { formatId, title: titleTrimmed },
+              include: { links: { select: { url: true } } },
+            })
+          : null
+
+      if (existing) {
+        const existingUrls = new Set(existing.links.map((l) => normalizeUrl(l.url)))
+        const toInsert = dedupedLinks.filter((l) => !existingUrls.has(normalizeUrl(l.url)))
+
+        if (toInsert.length > 0) {
+          await insertLinksInChunks(tx, existing.id, toInsert)
+          await tx.rekapSession.update({
+            where: { id: existing.id },
+            data: { totalLinks: { increment: toInsert.length } },
+          })
+        }
+
+        return {
+          id: existing.id,
+          title: titleTrimmed,
+          linkCount: toInsert.length,
+          skipped: dedupedLinks.length - toInsert.length,
+          invalidPlatformSkipped,
+          isExisting: true,
+        }
+      }
+
+      const session = await tx.rekapSession.create({
+        data: {
+          formatId,
+          operatorId,
+          title: titleTrimmed || null,
+          dateRange: dateRange?.trim() || null,
+          totalLinks: dedupedLinks.length,
+        },
+      })
+
+      await insertLinksInChunks(tx, session.id, dedupedLinks)
+
+      return {
+        id: session.id,
+        title: titleTrimmed,
+        linkCount: dedupedLinks.length,
+        skipped: internalDuplicates,
+        invalidPlatformSkipped,
+        isExisting: false,
+      }
     },
+    { timeout: 30000, maxWait: 10000 } 
+  )
+  } catch (error) {
+    // Race condition: request lain barusan kebentuk sesi dengan judul yang
+    // sama pas jeda antara pengecekan "existing" dan create di atas — DB
+    // unique constraint yang nangkep. 
+    if (error.code === 'P2002' && titleTrimmed && attempt < 1) {
+      return processGroup(group, formatId, operatorId, config, dateRange, platformNameById, attempt + 1)
+    }
+    throw error
+  }
+}
+
+export async function createBulkRekapSessions(formatId, groups, dateRange) {
+  if (!WEB_DEFAULT_OPERATOR_WA_ID) {
+    throw new Error('WEB_DEFAULT_OPERATOR_WA_ID belum di-set di .env')
+  }
+  if (!formatId) throw new Error('Format wajib dipilih')
+  if (!groups || groups.length === 0) throw new Error('Minimal 1 grup artikel harus ada')
+
+  const format = await prisma.reportFormat.findUnique({ where: { id: formatId } })
+  if (!format) throw new Error('Format tidak ditemukan')
+
+  const config = format.config || {}
+  if (config.requiredFields?.includes('dateRange') && !dateRange?.trim()) {
+    throw new Error('Periode tanggal wajib diisi untuk format ini')
+  }
+
+  const allPlatforms = await prisma.platform.findMany()
+  const platformNameById = new Map(allPlatforms.map((p) => [p.id.toString(), p.name]))
+
+
+  const operator = await prisma.operator.upsert({
+    where: { waId: WEB_DEFAULT_OPERATOR_WA_ID },
+    update: {},
+    create: { waId: WEB_DEFAULT_OPERATOR_WA_ID },
   })
 
-  return { id: session.id }
+  const results = []
+
+  for (const group of groups) {
+    if (!group.links || group.links.length === 0) continue
+
+    try {
+      const result = await processGroup(group, formatId, operator.id, config, dateRange, platformNameById)
+      results.push(result)
+    } catch (error) {
+      results.push({
+        title: group.title,
+        error: error.message,
+        linkCount: 0,
+        skipped: 0,
+        invalidPlatformSkipped: 0,
+        isExisting: false,
+      })
+    }
+  }
+
+  return results
 }
 
-function isPlatformAllowed(platformName, config) {
-  if (!Array.isArray(config?.requiredPlatform) || config.requiredPlatform.length === 0) return true
-  return config.requiredPlatform.some((p) => p.toLowerCase() === platformName.toLowerCase())
-}
-
-export function filterPlatformsByFormat(platforms, config) {
-  return platforms.filter((p) => isPlatformAllowed(p.name, config))
+// Dipake buat real-time duplicate check di preview Import Bulk — return SEMUA
+// URL yang udah ada per sesi (bukan cuma judul/count), biar client bisa hitung
+// mana link baru vs duplikat SEBELUM submit
+export async function getExistingSessionsWithLinks(formatId) {
+  const sessions = await prisma.rekapSession.findMany({
+    where: { formatId },
+    select: {
+      id: true,
+      title: true,
+      totalLinks: true,
+      links: { select: { url: true } },
+    },
+  })
+  return sessions.map((s) => ({
+    id: s.id,
+    title: s.title,
+    totalLinks: s.totalLinks,
+    urls: s.links.map((l) => normalizeUrl(l.url)),
+  }))
 }
 
 function shuffleArray(arr) {
@@ -265,16 +497,17 @@ function orderLinks(links, config) {
   return config.shuffle ? shuffleArray(links) : links
 }
 
-function buildMustacheContext({ session, stableLinks, displayLinks, pejabat }) {
+function buildMustacheContext({ session, stableLinks, displayLinks, pejabat,config }) {
   const dateFmt = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
   const platformOrder = []
-  const unitOrder = []
+  const unitOrderStable = []
   for (const l of stableLinks) {
     if (!platformOrder.includes(l.platform.name)) platformOrder.push(l.platform.name)
-    if (l.unit && !unitOrder.includes(l.unit.name)) unitOrder.push(l.unit.name)
+    if (l.unit && !unitOrderStable.includes(l.unit.name)) unitOrderStable.push(l.unit.name)
   }
 
+  const unitOrder = config.shuffle ? shuffleArray(unitOrderStable) : unitOrderStable
   const units = unitOrder.map((unitName) => {
     const unitLinks = displayLinks.filter((l) => l.unit?.name === unitName)
     const platMap = new Map()
@@ -325,116 +558,6 @@ function buildMustacheContext({ session, stableLinks, displayLinks, pejabat }) {
   }
 }
 
-export async function createBulkRekapSessions(formatId, groups) {
-  if (!WEB_DEFAULT_OPERATOR_WA_ID) {
-    throw new Error('WEB_DEFAULT_OPERATOR_WA_ID belum di-set di .env')
-  }
-  if (!formatId) throw new Error('Format wajib dipilih')
-  if (!groups || groups.length === 0) throw new Error('Minimal 1 grup artikel harus ada')
-
-  const format = await prisma.reportFormat.findUnique({ where: { id: formatId } })
-  if (!format) throw new Error('Format tidak ditemukan')
-
-  const operator = await prisma.operator.upsert({
-    where: { waId: WEB_DEFAULT_OPERATOR_WA_ID },
-    update: {},
-    create: { waId: WEB_DEFAULT_OPERATOR_WA_ID },
-  })
-
-  const results = []
-
-  await prisma.$transaction(async (tx) => {
-    for (const group of groups) {
-      if (!group.links || group.links.length === 0) continue
-
-      const titleTrimmed = group.title?.trim() || ''
-
-      // Cek apakah sesi dengan judul + format yang sama udah ada
-      const existing = titleTrimmed
-        ? await tx.rekapSession.findFirst({
-            where: {
-              formatId,
-              title: titleTrimmed,
-            },
-            include: { links: { select: { url: true } } },
-          })
-        : null
-
-      if (existing) {
-        // ── Tambahin ke sesi yang udah ada (dengan dedup) ──
-        const normalize = (url) => url.trim().replace(/\/+$/, '')
-        const existingUrls = new Set(existing.links.map((l) => normalize(l.url)))
-
-        const toInsert = group.links.filter((l) => !existingUrls.has(normalize(l.url)))
-
-        if (toInsert.length > 0) {
-          await tx.link.createMany({
-            data: toInsert.map((link) => ({
-              url: link.url.trim(),
-              sessionId: existing.id,
-              platformId: BigInt(link.platformId),
-              unitId: link.unitId ? BigInt(link.unitId) : null,
-            })),
-          })
-          await tx.rekapSession.update({
-            where: { id: existing.id },
-            data: { totalLinks: { increment: toInsert.length } },
-          })
-        }
-
-        results.push({
-          id: existing.id,
-          title: titleTrimmed,
-          linkCount: toInsert.length,
-          skipped: group.links.length - toInsert.length,
-          isExisting: true,
-        })
-      } else {
-        // ── Bikin sesi baru ──
-        const session = await tx.rekapSession.create({
-          data: {
-            formatId,
-            operatorId: operator.id,
-            title: titleTrimmed || null,
-            totalLinks: group.links.length,
-          },
-        })
-
-        await tx.link.createMany({
-          data: group.links.map((link) => ({
-            url: link.url.trim(),
-            sessionId: session.id,
-            platformId: BigInt(link.platformId),
-            unitId: link.unitId ? BigInt(link.unitId) : null,
-          })),
-        })
-
-        results.push({
-          id: session.id,
-          title: titleTrimmed,
-          linkCount: group.links.length,
-          skipped: 0,
-          isExisting: false,
-        })
-      }
-    }
-  })
-
-  return results
-}
-
-export async function getExistingSessionTitles(formatId) {
-  const sessions = await prisma.rekapSession.findMany({
-    where: { formatId },
-    select: { id: true, title: true, totalLinks: true },
-  })
-  return sessions.map((s) => ({
-    id: s.id,
-    title: s.title,
-    totalLinks: s.totalLinks,
-  }))
-}
-
 export async function generateReport(sessionId) {
   const session = await prisma.rekapSession.findUnique({
     where: { id: sessionId },
@@ -459,7 +582,7 @@ export async function generateReport(sessionId) {
   const displayLinks = orderLinks(links, config)
 
   const pejabat = await getAppConfigValue('nama_kapolresta')
-  const context = buildMustacheContext({ session, stableLinks: links, displayLinks, pejabat })
+  const context = buildMustacheContext({ session, stableLinks: links, displayLinks, pejabat, config })
 
   let text
   try {

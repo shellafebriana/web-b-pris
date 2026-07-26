@@ -58,6 +58,7 @@ model RekapSession {
 
   @@index([formatId], map: "RekapSession_formatId_fkey")
   @@index([operatorId], map: "RekapSession_operatorId_fkey")
+  @@unique([formatId, title(length: 191)])
 }
 
 model Platform {

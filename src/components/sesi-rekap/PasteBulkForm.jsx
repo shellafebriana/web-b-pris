@@ -6,11 +6,20 @@ import { addLinksBulkAction } from '@/app/(admin)/sesi-rekap/actions'
 import { useToast } from '@/context/ToastProvider'
 import { detectPlatformIdWithFallback } from '@/lib/platform-detect'
 import { preprocessRaw, parseWaLine, detectUnitFromSender } from '@/lib/wa-paste-parser'
+import { normalizeUrl } from '@/lib/url-utils'
 import SearchableUnitSelect from './SearchableUnitSelect'
 
 const initialState = { error: null }
 
-export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, platformsRestricted, units, requiresUnit }) {
+export default function PasteBulkForm({
+  sessionId,
+  platforms,
+  allowedPlatforms,
+  platformsRestricted,
+  units,
+  requiresUnit,
+  existingUrls = [],
+}) {
   const router = useRouter()
   const { showToast } = useToast()
   const [raw, setRaw] = useState('')
@@ -39,6 +48,7 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
     let currentUnitId = null
     let currentUnitName = null
     let ignoredCount = 0
+    const seenUrls = new Set(existingUrls)
 
     for (const line of lines) {
       // ── Coba parse sebagai format WhatsApp dulu ──
@@ -68,7 +78,9 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
 
         const platformId = detectedId && detectedAllowed ? detectedId : defaultPlatformId || ''
         const unitId = requiresUnit ? currentUnitId || defaultUnitId || '' : ''
-
+        const normalized = normalizeUrl(url)
+        const isDuplicate = seenUrls.has(normalized)
+        if (!isDuplicate) seenUrls.add(normalized)
         items.push({
           url,
           platformId,
@@ -76,13 +88,14 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
           _platformName: allowedPlatforms.find((p) => p.id === platformId)?.name || null,
           _unitName: requiresUnit ? (currentUnitName || null) : null,
           _conflictName: detectedPlatform && !detectedAllowed ? detectedPlatform.name : null,
+          _isDuplicate: isDuplicate,
         })
         continue
       }
 
       // ── Bukan format WA — fallback ke parsing biasa ──
       const stripped = line.replace(/^\d+\.\s*/, '')
-      if (!line.startsWith('http')) {
+      if (!stripped.startsWith('http')) {
         if (requiresUnit) {
           const found = units.find((u) => u.name.toLowerCase() === stripped.toLowerCase())
           if (found) {
@@ -102,6 +115,9 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
 
       const platformId = detectedId && detectedAllowed ? detectedId : defaultPlatformId || ''
       const unitId = requiresUnit ? currentUnitId || defaultUnitId || '' : ''
+      const normalized = normalizeUrl(stripped)
+      const isDuplicate = seenUrls.has(normalized)
+      if (!isDuplicate) seenUrls.add(normalized)
 
       items.push({
         url: stripped,
@@ -110,6 +126,7 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
         _platformName: allowedPlatforms.find((p) => p.id === platformId)?.name || null,
         _unitName: requiresUnit ? (currentUnitName || null) : null,
         _conflictName: detectedPlatform && !detectedAllowed ? detectedPlatform.name : null,
+        _isDuplicate: isDuplicate,
       })
     }
     return { items, ignoredCount }
@@ -118,6 +135,7 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
   const { items: parsedItems, ignoredCount } = parsed
   const missingPlatformCount = parsedItems.filter((i) => !i.platformId).length
   const conflictCount = parsedItems.filter((i) => i._conflictName).length
+  const duplicateCount = parsedItems.filter((i) => i._isDuplicate).length
   const canSubmit = parsedItems.length > 0 && missingPlatformCount === 0 && !isPending
 
   if (allowedPlatforms.length === 0) {
@@ -135,13 +153,13 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
       <input
         type="hidden"
         name="items"
-        value={JSON.stringify(parsedItems.map(({ _platformName, _unitName, _conflictName, ...item }) => item))}
+        value={JSON.stringify(parsedItems.map(({ _platformName, _unitName, _conflictName, _isDuplicate, ...item }) => item))}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
         {/* ── Kiri: Input ── */}
-        <div className="flex w-1/2 flex-col border-r border-gray-200 dark:border-gray-800">
-          <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex w-full flex-col border-b border-gray-200 dark:border-gray-800 md:w-1/2 md:border-b-0 md:border-r">
+          <div className="p-5 md:flex-1 md:overflow-y-auto">
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
               Paste URL (satu baris satu link, atau langsung dari chat WhatsApp)
             </label>
@@ -197,7 +215,7 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
         </div>
 
         {/* ── Kanan: Preview ── */}
-        <div className="flex w-1/2 flex-col">
+        <div className="flex w-full flex-col md:w-1/2">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-5 py-3 dark:border-gray-800">
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
               {parsedItems.length > 0 ? `${parsedItems.length} URL terdeteksi` : 'Preview'}
@@ -207,11 +225,14 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
                 <span className="text-xs text-error-600 dark:text-error-400">{missingPlatformCount} belum ada platform</span>
               )}
               {conflictCount > 0 && (
-                <span className="text-xs text-amber-600 dark:text-amber-400">{conflictCount} platform gak cocok</span>
+                <span className="text-xs text-amber-600 dark:text-amber-400">{conflictCount} platform tidak cocok</span>
+              )}
+              {duplicateCount > 0 && (
+                <span className="text-xs text-gray-400">{duplicateCount} duplikat</span>
               )}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="md:flex-1 md:overflow-y-auto">
             {parsedItems.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-gray-300 dark:text-gray-600">
                 Paste URL di sebelah kiri...
@@ -225,7 +246,9 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
                       ? 'bg-error-50 dark:bg-error-500/10'
                       : item._conflictName
                         ? 'bg-amber-50 dark:bg-amber-500/10'
-                        : ''
+                      : item._isDuplicate
+                        ? 'opacity-50'
+                      : ''
                   }`}
                 >
                   {item._platformName ? (
@@ -236,6 +259,9 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
                     <span className="shrink-0 rounded-full bg-error-100 dark:bg-error-500/20 px-2 py-0.5 text-error-600 dark:text-error-400">
                       ?
                     </span>
+                  )}
+                  {item._isDuplicate && (
+                    <span className="shrink-0 text-gray-400" title="Link sudah ada di sesi ini / ke-paste 2x">duplikat</span>
                   )}
                   <span className="min-w-0 flex-1 truncate font-mono text-gray-500 dark:text-gray-400">{item.url}</span>
                   {item._conflictName && (
@@ -252,7 +278,7 @@ export default function PasteBulkForm({ sessionId, platforms, allowedPlatforms, 
       </div>
 
       {/* ── Bottom bar ── */}
-      <div className="flex shrink-0 items-center gap-3 border-t border-gray-200 bg-white px-5 py-3 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-gray-200 bg-white px-5 py-3 dark:border-gray-800 dark:bg-gray-900">
         <button
           type="submit"
           disabled={!canSubmit}

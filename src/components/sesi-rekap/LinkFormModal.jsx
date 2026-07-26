@@ -47,6 +47,12 @@ export default function LinkFormModal({
   const detected = detectedId ? platforms.find((p) => p.id === detectedId) : null
   const detectedIsAllowed = detected ? allowedPlatforms.some((p) => p.id === detected.id) : true
 
+  const editDetectedId = mode === 'edit' && url.trim() ? detectPlatformIdWithFallback(url.trim(), platforms) : null
+  const editDetectedPlatform = editDetectedId ? platforms.find((p) => p.id === editDetectedId) : null
+  const editPlatformMismatch =
+    editDetectedPlatform && link?.platform && editDetectedPlatform.id !== link.platform.id
+
+
   useEffect(() => {
     if (mode === 'create' && detectedId && detectedIsAllowed) {
       setPlatformId(detectedId)
@@ -94,6 +100,12 @@ export default function LinkFormModal({
                   placeholder="https://..."
                   className="w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-800 dark:text-white"
                 />
+                {editPlatformMismatch && (
+                  <p className="mt-1 text-xs text-error-500">
+                    URL ini terdeteksi dari <strong>{editDetectedPlatform.name}</strong>, bukan{' '}
+                    <strong>{link.platform.name}</strong> (platform link ini). 
+                  </p>
+                )}
               </div>
 
               {mode === 'create' && (

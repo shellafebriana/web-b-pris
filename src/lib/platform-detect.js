@@ -26,3 +26,15 @@ export function detectPlatformIdWithFallback(url, platforms) {
   const lainnya = platforms.find((p) => p.name.toLowerCase() === 'lainnya')
   return lainnya?.id ?? null
 }
+
+// requiredPlatform di config format = daftar nama platform yang valid buat
+// format itu. Dipake bareng: dropdown platform di form tambah link, filter
+// link pas generate laporan, dan sekarang validasi di Import Bulk juga.
+export function isPlatformAllowed(platformName, config) {
+  if (!Array.isArray(config?.requiredPlatform) || config.requiredPlatform.length === 0) return true
+  return config.requiredPlatform.some((p) => p.toLowerCase() === platformName.toLowerCase())
+}
+
+export function filterPlatformsByFormat(platforms, config) {
+  return platforms.filter((p) => isPlatformAllowed(p.name, config))
+}

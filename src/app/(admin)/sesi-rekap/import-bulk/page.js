@@ -6,7 +6,7 @@ import { getAllPlatformsList } from '@/lib/models/platform'
 import { getAllUnitsList } from '@/lib/models/unit'
 import { ChevronLeftIcon } from '@/icons'
 import ImportBulkForm from '@/components/sesi-rekap/ImportBulkForm'
-import { getExistingSessionTitles } from '@/lib/models/rekapSession'
+import { getExistingSessionsWithLinks } from '@/lib/models/rekapSession'
 
 export default async function ImportBulkPage() {
   const user = await getAuthUser()
@@ -25,12 +25,12 @@ export default async function ImportBulkPage() {
 
   const existingSessionsMap = {}
   for (const f of onlineFormats) {
-    existingSessionsMap[f.id] = await getExistingSessionTitles(f.id)
+    existingSessionsMap[f.id] = await getExistingSessionsWithLinks(f.id)
   }
 
   return (
     <div className="fixed inset-0 z-999999 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-center gap-3">
           <Link
             href="/sesi-rekap"

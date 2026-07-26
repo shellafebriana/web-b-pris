@@ -28,7 +28,7 @@ export default function SessionDetailView({
   return (
     <div className="fixed inset-0 z-999999 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* ── Topbar ── */}
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -45,7 +45,13 @@ export default function SessionDetailView({
               <Badge variant="light" color={badge.color}>{badge.label}</Badge>
               <span className="truncate">{session.format.name}</span>
               <span>·</span>
-              <span className="truncate">{session.operatorWaId}</span>
+            <span className="truncate">
+              {new Date(session.createdAt).toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </span>
               {session.dateRange && (
                 <>
                   <span>·</span>

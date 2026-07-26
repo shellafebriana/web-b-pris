@@ -4,6 +4,7 @@ import { getAuthUser } from '@/lib/auth'
 import { getRekapSessionById, filterPlatformsByFormat } from '@/lib/models/rekapSession'
 import { getAllPlatformsList } from '@/lib/models/platform'
 import { getAllUnitsList } from '@/lib/models/unit'
+import { normalizeUrl } from '@/lib/url-utils'
 import { ChevronLeftIcon } from '@/icons'
 import PasteBulkForm from '@/components/sesi-rekap/PasteBulkForm'
 
@@ -24,11 +25,12 @@ export default async function PasteBulkPage({ params }) {
   const allowedPlatforms = filterPlatformsByFormat(platforms, session.format?.config)
   const platformsRestricted = allowedPlatforms.length < platforms.length
   const requiresUnit = Boolean(session.format?.config?.hasUnit)
+  const existingUrls = session.links.map((l) => normalizeUrl(l.url))
 
   return (
     <div className="fixed inset-0 z-999999 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Topbar */}
-      <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href={`/sesi-rekap/${id}`}
@@ -52,6 +54,7 @@ export default async function PasteBulkPage({ params }) {
             platformsRestricted={platformsRestricted}
             units={units}
             requiresUnit={requiresUnit}
+            existingUrls={existingUrls}
           />
         </div>
     </div>
