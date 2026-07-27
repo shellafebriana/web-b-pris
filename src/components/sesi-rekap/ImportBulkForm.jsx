@@ -1,22 +1,23 @@
 "use client"
 
-import { useState, useMemo, useActionState, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useActionState } from 'react'
 import { useRouter } from 'next/navigation'
-import { importBulkMediaOnlineAction } from '@/app/(admin)/sesi-rekap/actions'
+import { importBulkMediaOnlineAction, checkImportGroupsAction } from '@/app/(admin)/sesi-rekap/actions'
 import { useToast } from '@/context/ToastProvider'
-import { detectPlatformIdWithFallback, isPlatformAllowed, filterPlatformsByFormat  } from '@/lib/platform-detect'
+import { detectPlatformIdWithFallback, isPlatformAllowed, filterPlatformsByFormat } from '@/lib/platform-detect'
 import { preprocessRaw, parseWaLine, detectUnitFromSender, getArticleSlug, slugToTitle } from '@/lib/wa-paste-parser'
 import { normalizeUrl } from '@/lib/url-utils'
 
 const initialState = { error: null }
 
-export default function ImportBulkForm({ formats, platforms, units, existingSessionsMap }) {
+export default function ImportBulkForm({ formats, platforms, units }) {
   const router = useRouter()
   const { showToast } = useToast()
   const [raw, setRaw] = useState('')
   const [formatId, setFormatId] = useState(formats[0]?.id || '')
   const [dateRange, setDateRange] = useState('')
   const [titleOverrides, setTitleOverrides] = useState({})
+  const [checkResults, setCheckResults] = useState({}) // title(lowercase) → hasil cek server
 
   const [state, formAction, isPending] = useActionState(importBulkMediaOnlineAction, initialState)
 
@@ -26,8 +27,8 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
       if (state.created > 0) parts.push(`${state.created} sesi baru dibuat`)
       if (state.appended > 0) parts.push(`${state.appended} sesi ditambahkan link-nya`)
       if (state.totalSkipped > 0) parts.push(`${state.totalSkipped} link duplikat dilewati`)
-      if (state.totalInvalidPlatform > 0) parts.push(`${state.totalInvalidPlatform} link platform-nya tidak sesuai dilewati`)
-      if (state.totalInvalidUrl > 0) parts.push(`${state.totalInvalidUrl} URL tidak valid dilewati`)
+      if (state.totalInvalidPlatform > 0) parts.push(`${state.totalInvalidPlatform} link platform-nya gak sesuai dilewati`)
+      if (state.totalInvalidUrl > 0) parts.push(`${state.totalInvalidUrl} URL gak valid dilewati`)
       if (state.failedCount > 0) parts.push(`${state.failedCount} gagal diproses`)
       showToast(parts.join(', ') || 'Selesai', state.failedCount > 0 ? 'error' : 'success')
       router.push('/sesi-rekap')
@@ -42,13 +43,6 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
   const requiresDateRange = Boolean(config?.requiredFields?.includes('dateRange'))
   const allowedPlatforms = filterPlatformsByFormat(platforms, config)
   const platformsRestricted = allowedPlatforms.length < platforms.length
-  const existingSessions = existingSessionsMap[formatId] || []
-  
-  const findExistingSession = (title) => {
-    const t = title?.trim().toLowerCase()
-    if (!t) return null
-    return existingSessions.find((s) => s.title?.trim().toLowerCase() === t) || null
-  }
 
   const grouped = useMemo(() => {
     const preprocessed = preprocessRaw(raw)
@@ -82,14 +76,12 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
       const detectedPlatform = detectedId ? platforms.find((p) => p.id === detectedId) : null
       const allowed = detectedPlatform ? isPlatformAllowed(detectedPlatform.name, config) : false
       const platformId = allowed ? detectedId : ''
- 
 
       if (!groupMap.has(slug)) {
         groupMap.set(slug, { slug, autoTitle: slugToTitle(slug), links: [], unitNames: new Set() })
       }
-
       const group = groupMap.get(slug)
-      group.links.push({ url, platformId, unitId: unitId || null, _restricted: Boolean(detectedPlatform && !allowed)  })
+      group.links.push({ url, platformId, unitId: unitId || null, _restricted: Boolean(detectedPlatform && !allowed) })
       if (unitName) group.unitNames.add(unitName)
     }
 
@@ -98,18 +90,38 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
       title: titleOverrides[g.slug] ?? g.autoTitle,
       unitNames: [...g.unitNames].sort(),
     }))
-
     return { groups, ignoredCount }
-  }, [raw, platforms, units, requiresUnit, titleOverrides])
+  }, [raw, platforms, units, requiresUnit, titleOverrides, config])
 
   const { groups, ignoredCount } = grouped
+
+  // On-demand check: debounced, dipanggil ke server tiap daftar grup berubah.
+  // Ganti dari "preload semua sesi+link format ini tiap buka halaman" jadi
+  // "cek beneran cuma pas ada grup yang lagi di-preview"
+  const checkDebounceRef = useRef(null)
+  useEffect(() => {
+    if (groups.length === 0 || !formatId) return
+    clearTimeout(checkDebounceRef.current)
+    checkDebounceRef.current = setTimeout(async () => {
+      const summaries = groups.map((g) => ({ title: g.title, urls: g.links.map((l) => l.url) }))
+      try {
+        const results = await checkImportGroupsAction(formatId, summaries)
+        const map = {}
+        for (const r of results) {
+          map[r.title?.trim().toLowerCase()] = r
+        }
+        setCheckResults(map)
+      } catch {
+        // gagal cek gak nge-block apa-apa — submit tetep divalidasi ulang di server
+      }
+    }, 500)
+    return () => clearTimeout(checkDebounceRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw, formatId, requiresUnit, JSON.stringify(titleOverrides)])
+
   const missingPlatform = groups.some((g) => g.links.some((l) => !l.platformId))
   const canSubmit =
-    groups.length > 0 &&
-    !missingPlatform &&
-    formatId &&
-    (!requiresDateRange || dateRange.trim()) &&
-    !isPending
+    groups.length > 0 && !missingPlatform && formatId && (!requiresDateRange || dateRange.trim()) && !isPending
 
   function countNewAndDuplicate(links, existingUrls) {
     const seen = new Set(existingUrls || [])
@@ -117,29 +129,37 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
     let duplicateCount = 0
     for (const l of links) {
       const normalized = normalizeUrl(l.url)
-      if (seen.has(normalized)) {
-        duplicateCount++
-      } else {
-        seen.add(normalized)
-        newCount++
-      }
+      if (seen.has(normalized)) duplicateCount++
+      else { seen.add(normalized); newCount++ }
     }
     return { newCount, duplicateCount }
   }
 
-  // Enrich tiap grup dengan info existing session + hitungan link baru vs duplikat
   const enrichedGroups = groups.map((g) => {
-    const existing = findExistingSession(g.title)
+    const key = g.title?.trim().toLowerCase()
+    const checkResult = checkResults[key]
     const restrictedCount = g.links.filter((l) => l._restricted).length
-    const { newCount, duplicateCount } = countNewAndDuplicate(g.links, existing?.urls)
-    return { ...g, existingSession: existing, newCount, duplicateCount, restrictedCount }
+    const checking = Boolean(key) && !checkResult
+
+    if (!checkResult?.exists) {
+      return { ...g, existingSession: null, newCount: g.links.length, duplicateCount: 0, restrictedCount, checking }
+    }
+    const { newCount, duplicateCount } = countNewAndDuplicate(g.links, checkResult.existingUrls)
+    return {
+      ...g,
+      existingSession: { totalLinks: checkResult.totalLinks },
+      newCount,
+      duplicateCount,
+      restrictedCount,
+      checking: false,
+    }
   })
-  
-  const totalRestrictedLinks = enrichedGroups.reduce((sum, g) => sum + g.restrictedCount, 0)
+
   const newSessionCount = enrichedGroups.filter((g) => !g.existingSession).length
   const appendSessionCount = enrichedGroups.filter((g) => g.existingSession).length
   const totalNewLinks = enrichedGroups.reduce((sum, g) => sum + g.newCount, 0)
   const totalDuplicateLinks = enrichedGroups.reduce((sum, g) => sum + g.duplicateCount, 0)
+  const totalRestrictedLinks = enrichedGroups.reduce((sum, g) => sum + g.restrictedCount, 0)
 
   const handleTitleChange = (slug, newTitle) => {
     setTitleOverrides((prev) => ({ ...prev, [slug]: newTitle }))
@@ -155,8 +175,8 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
       <input type="hidden" name="formatId" value={formatId} />
       <input type="hidden" name="dateRange" value={dateRange} />
       <input type="hidden" name="groups" value={JSON.stringify(submitGroups)} />
+
       <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
-        {/* ── Kiri: Input ── */}
         <div className="flex w-full flex-col border-b border-gray-200 dark:border-gray-800 md:w-1/2 md:border-b-0 md:border-r">
           <div className="p-5 md:flex-1 md:overflow-y-auto">
             <div className="mb-4">
@@ -170,6 +190,7 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
                 {formats.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
+
             {requiresDateRange && (
               <div className="mb-4">
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -182,7 +203,7 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
                   placeholder="Contoh: 21 Juli 2026"
                   className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
                 />
-                <p className="mt-1 text-xs text-gray-400">Terpakai buat semua sesi baru yang dibuat dari batch ini.</p>
+                <p className="mt-1 text-xs text-gray-400">Dipake buat semua sesi baru yang dibuat dari batch ini.</p>
               </div>
             )}
 
@@ -196,19 +217,16 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
               className="min-h-64 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 resize-none"
             />
             <p className="mt-1.5 text-xs text-gray-400">
-              Link otomatis dikelompokin per artikel (berdasarkan slug URL). Kalau judul udah pernah ada, link baru bakal ditambahin ke sesi itu (duplikat dilewati).
+              Link otomatis dikelompokin per artikel. Kalau judul udah pernah ada, link baru bakal ditambahin ke sesi itu.
               {requiresUnit && ' Unit terdeteksi dari nama pengirim WhatsApp.'}
               {platformsRestricted && ' Platform dibatasi sesuai format yang dipilih.'}
             </p>
             {ignoredCount > 0 && (
-              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                {ignoredCount} baris diabaikan (gak ada URL{requiresUnit ? ' atau nama unit yang dikenali' : ''})
-              </p>
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{ignoredCount} baris diabaikan</p>
             )}
           </div>
         </div>
 
-        {/* ── Kanan: Preview grup ── */}
         <div className="flex w-full flex-col md:w-1/2">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-5 py-3 dark:border-gray-800">
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -221,9 +239,7 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
                 <span className="text-gray-400">·</span>
                 <span className="text-success-600 dark:text-success-400">{totalNewLinks} link baru</span>
                 {totalDuplicateLinks > 0 && <span className="text-amber-600 dark:text-amber-400">{totalDuplicateLinks} duplikat</span>}
-                {totalRestrictedLinks > 0 && (
-                  <span className="text-error-600 dark:text-error-400">{totalRestrictedLinks} platform gak sesuai</span>
-                )}
+                {totalRestrictedLinks > 0 && <span className="text-error-600 dark:text-error-400">{totalRestrictedLinks} platform gak sesuai</span>}
               </div>
             )}
           </div>
@@ -236,8 +252,12 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
               <div className="divide-y divide-gray-200 dark:divide-gray-800">
                 {enrichedGroups.map((group) => (
                   <div key={group.slug} className="p-4">
-                    <div className="mb-2 flex items-start gap-2">
-                      {group.existingSession ? (
+                    <div className="mb-2 flex flex-wrap items-start gap-2">
+                      {group.checking ? (
+                        <span className="mt-1 shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400 dark:bg-white/5">
+                          mengecek...
+                        </span>
+                      ) : group.existingSession ? (
                         <span className="mt-1 shrink-0 rounded-full bg-success-50 px-2 py-0.5 text-xs font-medium text-success-700 dark:bg-success-500/20 dark:text-success-300">
                           +{group.newCount} baru
                         </span>
@@ -253,7 +273,7 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
                       )}
                       {group.restrictedCount > 0 && (
                         <span className="mt-1 shrink-0 rounded-full bg-error-100 px-2 py-0.5 text-xs font-medium text-error-700 dark:bg-error-500/20 dark:text-error-300">
-                          {group.restrictedCount} platform tidak sesuai
+                          {group.restrictedCount} platform gak sesuai
                         </span>
                       )}
                       <input
@@ -266,7 +286,6 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
                     {group.existingSession && (
                       <p className="mb-2 text-xs text-gray-400">
                         ↳ Sesi udah ada, {group.existingSession.totalLinks} link sebelumnya
-                        {group.duplicateCount === group.links.length && ' — semua link ini udah ada, gak ada yang baru'}
                       </p>
                     )}
                     {group.unitNames.length > 0 && (
@@ -282,9 +301,7 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
                       {group.links.slice(0, 3).map((link, i) => (
                         <p key={i} className="truncate text-xs font-mono text-gray-400">{link.url}</p>
                       ))}
-                      {group.links.length > 3 && (
-                        <p className="text-xs text-gray-400">+{group.links.length - 3} lainnya</p>
-                      )}
+                      {group.links.length > 3 && <p className="text-xs text-gray-400">+{group.links.length - 3} lainnya</p>}
                     </div>
                   </div>
                 ))}
@@ -294,17 +311,13 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
         </div>
       </div>
 
-      {/* ── Bottom bar ── */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-gray-200 bg-white px-5 py-3 dark:border-gray-800 dark:bg-gray-900">
         <button
           type="submit"
           disabled={!canSubmit}
           className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
         >
-          {isPending ? 'Memproses...' : groups.length > 0
-            ? `Proses ${groups.length} artikel (${totalNewLinks} link baru)`
-            : 'Proses'
-          }
+          {isPending ? 'Memproses...' : groups.length > 0 ? `Proses ${groups.length} artikel (${totalNewLinks} link baru)` : 'Proses'}
         </button>
         <button
           type="button"

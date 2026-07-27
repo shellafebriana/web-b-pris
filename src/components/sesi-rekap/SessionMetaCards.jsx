@@ -8,26 +8,12 @@ function MetaCard({ label, value, hint, valueClass = 'text-gray-900 dark:text-wh
   )
 }
 
-export default function SessionMetaCards({ session, units }) {
-  const config = session.format?.config || {}
-  const links = session.links || []
-  const groupBy = config.groupBy
-  const totalLink = links.length
-
-  if (groupBy === 'unit') {
-    const byUnit = {}
-    links.forEach((l) => {
-      if (l.unit?.name) byUnit[l.unit.name] = (byUnit[l.unit.name] || 0) + 1
-    })
-    const unitScope = config.unitScope || 'POLSEK'
-    const allUnits = units.filter((u) => u.type === unitScope)
-    const collected = Object.entries(byUnit).map(([name, count]) => ({ name, count }))
-    const collectedNames = collected.map((u) => u.name)
-    const notCollected = allUnits.filter((u) => !collectedNames.includes(u.name))
-
+export default function SessionMetaCards({ metaCounts, totalLinks }) {
+  if (metaCounts.type === 'unit') {
+    const { collected, notCollected } = metaCounts
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <MetaCard label="Total link" value={totalLink} hint="dari semua unit" />
+        <MetaCard label="Total link" value={totalLinks} hint="dari semua unit" />
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
           <p className="mb-2 text-xs font-medium text-gray-400">
             Sudah mengumpulkan <span className="text-success-600 dark:text-success-400">({collected.length})</span>
@@ -38,7 +24,7 @@ export default function SessionMetaCards({ session, units }) {
             ) : (
               collected.map((u) => (
                 <div key={u.name} className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate text-xs text-gray-700 dark:text-gray-300">{u.name}</span>
+                  <span className="truncate text-xs text-gray-700 dark:text-gray-300">{u.name}</span>
                   <span className="shrink-0 text-xs text-gray-400">{u.count} link</span>
                 </div>
               ))
@@ -63,21 +49,16 @@ export default function SessionMetaCards({ session, units }) {
     )
   }
 
-  if (groupBy === 'platform') {
-    const byPlatform = {}
-    links.forEach((l) => {
-      const name = l.platform?.name || 'Lainnya'
-      byPlatform[name] = (byPlatform[name] || 0) + 1
-    })
-    const maxCount = Math.max(...Object.values(byPlatform), 1)
-
+  if (metaCounts.type === 'platform') {
+    const { byPlatform } = metaCounts
+    const maxCount = Math.max(...byPlatform.map((p) => p.count), 1)
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <MetaCard label="Total link" value={totalLink} hint={`${Object.keys(byPlatform).length} platform`} />
+        <MetaCard label="Total link" value={totalLinks} hint={`${byPlatform.length} platform`} />
         <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
           <p className="mb-3 text-xs font-medium text-gray-400">Breakdown platform</p>
           <div className="space-y-2">
-            {Object.entries(byPlatform).map(([name, count]) => (
+            {byPlatform.map(({ name, count }) => (
               <div key={name} className="flex items-center gap-2">
                 <span className="w-24 shrink-0 truncate text-xs text-gray-700 dark:text-gray-300">{name}</span>
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
@@ -92,13 +73,12 @@ export default function SessionMetaCards({ session, units }) {
     )
   }
 
-  const priorityCount = links.filter((l) => l.isPriority).length
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <MetaCard label="Total link" value={totalLink} hint="siap di-generate" />
+      <MetaCard label="Total link" value={totalLinks} hint="siap di-generate" />
       <MetaCard
         label="Link prioritas"
-        value={priorityCount}
+        value={metaCounts.priorityCount || 0}
         hint="akan diurutkan paling atas"
         valueClass="text-amber-600 dark:text-amber-400"
       />

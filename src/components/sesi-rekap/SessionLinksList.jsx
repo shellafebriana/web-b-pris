@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, useTransition } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import LinkFormModal from './LinkFormModal'
 import DeleteLinkButton from './DeleteLinkButton'
@@ -15,28 +16,53 @@ const DEFAULT_PLATFORM_COLOR = 'bg-gray-100 text-gray-500 dark:bg-white/5 dark:t
 
 export default function SessionLinksList({
   sessionId,
-  links,
+  linksPage,
+  linkPlatformOptions,
   platforms,
   allowedPlatforms,
   platformsRestricted,
   units,
   requiresUnit,
 }) {
-  const [filterPlatform, setFilterPlatform] = useState('all')
-  const [search, setSearch] = useState('')
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [isPending, startTransition] = useTransition()
 
-  const uniquePlatforms = [...new Set(links.map((l) => l.platform?.name).filter(Boolean))]
+  const [search, setSearch] = useState(searchParams.get('q') || '')
+  const currentPlatform = searchParams.get('platform') || ''
+  const debounceRef = useRef(null)
 
-  const filtered = links
-    .filter((l) => filterPlatform === 'all' || l.platform?.name === filterPlatform)
-    .filter((l) => !search || l.url.toLowerCase().includes(search.toLowerCase()))
+  const updateParams = (updates) => {
+    const params = new URLSearchParams(searchParams.toString())
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) params.set(key, value)
+      else params.delete(key)
+    })
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false })
+    })
+  }
+
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      if (search !== (searchParams.get('q') || '')) {
+        updateParams({ q: search, page: null })
+      }
+    }, 400)
+    return () => clearTimeout(debounceRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search])
+
+  const { data: links, pagination } = linksPage
+  const showingFrom = links.length === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1
+  const showingTo = Math.min(pagination.page * pagination.limit, pagination.total)
 
   return (
     <div className="flex flex-col rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
-      {/* Toolbar atas: judul + tombol aksi */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3 dark:border-gray-800">
         <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-          Daftar link ({filtered.length}{filtered.length !== links.length ? ` dari ${links.length}` : ''})
+          Daftar link ({pagination.total})
         </span>
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -57,40 +83,38 @@ export default function SessionLinksList({
         </div>
       </div>
 
-      {/* Search + filter platform */}
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-2 dark:border-gray-800">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Cari URL..."
-          className="w-full sm:max-w-xs rounded-lg border border-gray-200 bg-transparent px-3 py-1.5 text-xs text-gray-800 placeholder:text-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-gray-700 dark:text-white"
+          className="w-full rounded-lg border border-gray-200 bg-transparent px-3 py-1.5 text-xs text-gray-800 placeholder:text-gray-400 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10 dark:border-gray-700 dark:text-white sm:max-w-xs"
         />
         <div className="flex flex-wrap gap-1.5">
-          {['all', ...uniquePlatforms].map((p) => (
+          {['', ...linkPlatformOptions].map((p) => (
             <button
-              key={p}
-              onClick={() => setFilterPlatform(p)}
+              key={p || 'all'}
+              onClick={() => updateParams({ platform: p, page: null })}
               className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                filterPlatform === p
+                currentPlatform === p
                   ? 'border-brand-500 bg-brand-500 text-white'
                   : 'border-gray-200 text-gray-500 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
               }`}
             >
-              {p === 'all' ? 'Semua' : p}
+              {p || 'Semua'}
             </button>
           ))}
         </div>
       </div>
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto" style={{ maxHeight: '60vh' }}>
-        {filtered.length === 0 ? (
+      <div className="flex-1 overflow-y-auto" style={{ maxHeight: '50vh' }}>
+        {links.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-300 dark:text-gray-600">
-            {search || filterPlatform !== 'all' ? 'Gak ada link yang cocok' : 'Belum ada link'}
+            {search || currentPlatform ? 'Gak ada link yang cocok' : 'Belum ada link'}
           </div>
         ) : (
-          filtered.map((link) => (
+          links.map((link) => (
             <div
               key={link.id}
               className="group flex items-center gap-2 border-b border-gray-50 px-4 py-2.5 text-xs hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
@@ -124,6 +148,31 @@ export default function SessionLinksList({
             </div>
           ))
         )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-4 py-2.5 dark:border-gray-800">
+        <span className="text-xs text-gray-400">
+          {pagination.total > 0
+            ? `Nampilin ${showingFrom}-${showingTo} dari ${pagination.total}`
+            : ''}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">Halaman {pagination.page} dari {pagination.pages}</span>
+          <button
+            onClick={() => updateParams({ page: String(pagination.page - 1) })}
+            disabled={pagination.page <= 1 || isPending}
+            className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300"
+          >
+            ←
+          </button>
+          <button
+            onClick={() => updateParams({ page: String(pagination.page + 1) })}
+            disabled={pagination.page >= pagination.pages || isPending}
+            className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 disabled:opacity-40 dark:border-gray-700 dark:text-gray-300"
+          >
+            →
+          </button>
+        </div>
       </div>
     </div>
   )

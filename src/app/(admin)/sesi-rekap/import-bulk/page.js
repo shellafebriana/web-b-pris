@@ -6,7 +6,6 @@ import { getAllPlatformsList } from '@/lib/models/platform'
 import { getAllUnitsList } from '@/lib/models/unit'
 import { ChevronLeftIcon } from '@/icons'
 import ImportBulkForm from '@/components/sesi-rekap/ImportBulkForm'
-import { getExistingSessionsWithLinks } from '@/lib/models/rekapSession'
 
 export default async function ImportBulkPage() {
   const user = await getAuthUser()
@@ -22,11 +21,6 @@ export default async function ImportBulkPage() {
   const onlineFormats = formats.filter(
     (f) => f.isActive && f.name.toLowerCase().includes('media online')
   )
-
-  const existingSessionsMap = {}
-  for (const f of onlineFormats) {
-    existingSessionsMap[f.id] = await getExistingSessionsWithLinks(f.id)
-  }
 
   return (
     <div className="fixed inset-0 z-999999 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
@@ -46,7 +40,7 @@ export default async function ImportBulkPage() {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <ImportBulkForm formats={onlineFormats} platforms={platforms} units={units} existingSessionsMap={existingSessionsMap}  />
+        <ImportBulkForm formats={onlineFormats} platforms={platforms} units={units} />
       </div>
     </div>
   )

@@ -16,10 +16,13 @@ const STATE_BADGE = {
 
 export default function SessionDetailView({
   session,
+  metaCounts,
+  linksPage,
+  linkPlatformOptions,
+  units,
   platforms,
   allowedPlatforms,
   platformsRestricted,
-  units,
   requiresUnit,
 }) {
   const router = useRouter()
@@ -27,9 +30,8 @@ export default function SessionDetailView({
 
   return (
     <div className="fixed inset-0 z-999999 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
-      {/* ── Topbar ── */}
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900">
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={() => router.push('/sesi-rekap')}
@@ -45,13 +47,9 @@ export default function SessionDetailView({
               <Badge variant="light" color={badge.color}>{badge.label}</Badge>
               <span className="truncate">{session.format.name}</span>
               <span>·</span>
-            <span className="truncate">
-              {new Date(session.createdAt).toLocaleDateString('id-ID', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </span>
+              <span className="truncate">
+                {new Date(session.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </span>
               {session.dateRange && (
                 <>
                   <span>·</span>
@@ -64,15 +62,15 @@ export default function SessionDetailView({
         <EditSessionInfoModal session={session} />
       </div>
 
-      {/* ── Content ── */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="mx-auto max-w-(--breakpoint-2xl)">
-          <SessionMetaCards session={session} units={units} />
+          <SessionMetaCards metaCounts={metaCounts} totalLinks={session.totalLinks} />
 
           <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
             <SessionLinksList
               sessionId={session.id}
-              links={session.links}
+              linksPage={linksPage}
+              linkPlatformOptions={linkPlatformOptions}
               platforms={platforms}
               allowedPlatforms={allowedPlatforms}
               platformsRestricted={platformsRestricted}
@@ -82,7 +80,7 @@ export default function SessionDetailView({
             <GenerateReportPanel
               sessionId={session.id}
               initialText={session.summaryJson?.text}
-              hasLinks={session.links.length > 0}
+              hasLinks={session.totalLinks > 0}
             />
           </div>
         </div>

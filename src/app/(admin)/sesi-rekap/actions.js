@@ -12,6 +12,7 @@ import {
   createRekapSession,
   generateReport,
   createBulkRekapSessions,
+  checkGroupsAgainstExistingSessions
 } from '@/lib/models/rekapSession'
 
 async function requireAdmin() {
@@ -20,6 +21,14 @@ async function requireAdmin() {
     redirect('/login')
   }
   return user
+}
+
+// Dipanggil langsung dari Client Component (bukan lewat <form>) — Import Bulk
+// manggil ini tiap kali daftar grup artikel berubah, ngecek on-demand per
+// grup (bukan preload semua sesi+link tiap buka halaman)
+export async function checkImportGroupsAction(formatId, groupSummaries) {
+  await requireAdmin()
+  return checkGroupsAgainstExistingSessions(formatId, groupSummaries)
 }
 
 export async function deleteRekapSessionAction(id) {
