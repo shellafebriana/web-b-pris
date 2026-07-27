@@ -27,6 +27,7 @@ export default function ImportBulkForm({ formats, platforms, units, existingSess
       if (state.appended > 0) parts.push(`${state.appended} sesi ditambahkan link-nya`)
       if (state.totalSkipped > 0) parts.push(`${state.totalSkipped} link duplikat dilewati`)
       if (state.totalInvalidPlatform > 0) parts.push(`${state.totalInvalidPlatform} link platform-nya tidak sesuai dilewati`)
+      if (state.totalInvalidUrl > 0) parts.push(`${state.totalInvalidUrl} URL tidak valid dilewati`)
       if (state.failedCount > 0) parts.push(`${state.failedCount} gagal diproses`)
       showToast(parts.join(', ') || 'Selesai', state.failedCount > 0 ? 'error' : 'success')
       router.push('/sesi-rekap')

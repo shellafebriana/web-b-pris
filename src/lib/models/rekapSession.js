@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma'
 import Mustache from 'mustache'
 import { getAppConfigValue } from './appConfig'
-import { normalizeUrl } from '@/lib/url-utils'
+import { normalizeUrl, isValidUrl } from '@/lib/url-utils'
 import {
   detectPlatformIdWithFallback,
   isPlatformAllowed,
@@ -114,6 +114,7 @@ export async function addLinksToSession(sessionId, items) {
   }
   for (const item of items) {
     if (!item.url?.trim()) throw new Error('URL tidak boleh kosong')
+    if (!isValidUrl(item.url)) throw new Error(`URL tidak valid: ${item.url}`)
     if (!item.platformId) throw new Error(`Platform wajib dipilih untuk link: ${item.url}`)
   }
 
@@ -183,6 +184,7 @@ export async function addLinksToSession(sessionId, items) {
 
 export async function updateLink(linkId, sessionId, { url, unitId }) {
   if (!url?.trim()) throw new Error('URL tidak boleh kosong')
+  if (!isValidUrl(url)) throw new Error(`URL tidak valid: ${url}`)
 
   const currentLink = await prisma.link.findFirst({
     where: { id: BigInt(linkId), sessionId },
@@ -319,11 +321,11 @@ async function processGroup(group, formatId, operatorId, config, dateRange, plat
     throw new Error('Judul wajib diisi (ada grup tanpa judul)')
   }
 
-  // Cross-check server-side: platformId yang dikirim client harus beneran
-  // termasuk platform yang diizinin format ini — jaga-jaga kalau ada yang
-  // lolos dari validasi client (misal request langsung, bukan lewat UI)
-  const validLinks = group.links.filter((l) => isPlatformAllowed(platformNameById.get(l.platformId) || '', config))
-  const invalidPlatformSkipped = group.links.length - validLinks.length
+  const urlValidLinks = group.links.filter((l) => isValidUrl(l.url))
+  const invalidUrlSkipped = group.links.length - urlValidLinks.length
+
+  const validLinks = urlValidLinks.filter((l) => isPlatformAllowed(platformNameById.get(l.platformId) || '', config))
+  const invalidPlatformSkipped = urlValidLinks.length - validLinks.length
 
   if (validLinks.length === 0) {
     throw new Error(`Semua link di "${titleTrimmed || '(tanpa judul)'}" platform-nya tidak sesuai format ini`)
@@ -372,6 +374,7 @@ async function processGroup(group, formatId, operatorId, config, dateRange, plat
           linkCount: toInsert.length,
           skipped: dedupedLinks.length - toInsert.length,
           invalidPlatformSkipped,
+          invalidUrlSkipped,
           isExisting: true,
         }
       }
@@ -394,6 +397,7 @@ async function processGroup(group, formatId, operatorId, config, dateRange, plat
         linkCount: dedupedLinks.length,
         skipped: internalDuplicates,
         invalidPlatformSkipped,
+        invalidUrlSkipped,
         isExisting: false,
       }
     },

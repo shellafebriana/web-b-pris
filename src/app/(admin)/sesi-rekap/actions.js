@@ -151,6 +151,7 @@ export async function importBulkMediaOnlineAction(prevState, formData) {
    const appended = succeeded.filter((r) => r.isExisting)
    const totalSkipped = succeeded.reduce((sum, r) => sum + (r.skipped || 0), 0)
    const totalInvalidPlatform = succeeded.reduce((sum, r) => sum + (r.invalidPlatformSkipped || 0), 0)
+   const totalInvalidUrl = succeeded.reduce((sum, r) => sum + (r.invalidUrlSkipped || 0), 0)
  
     return {
       success: true,
@@ -159,6 +160,7 @@ export async function importBulkMediaOnlineAction(prevState, formData) {
       appended: appended.length,
       totalSkipped,
       totalInvalidPlatform,
+      totalInvalidUrl,
       failedCount: failed.length,
       failedTitles: failed.map((r) => r.title),
     }

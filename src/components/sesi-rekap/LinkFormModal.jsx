@@ -129,13 +129,12 @@ export default function LinkFormModal({
                       </select>
                       {detected && !detectedIsAllowed && (
                         <p className="mt-1 text-xs text-error-500">
-                          ⚠ URL ini kedeteksi dari <strong>{detected.name}</strong>, tapi format sesi ini gak nerima
-                          platform itu — cek lagi URL-nya bener gak.
+                          ⚠ URL ini terdeteksi dari <strong>{detected.name}</strong>, tapi format sesi ini tidak menerima platform itu — Silahkan ubah URL-nya.
                         </p>
                       )}
                       {detected && detectedIsAllowed && platformId === detected.id && (
                         <p className="mt-1 text-xs text-success-600 dark:text-success-400">
-                          ✓ Otomatis kedeteksi sebagai {detected.name}
+                          ✓ Otomatis terdeteksi sebagai {detected.name}
                         </p>
                       )}
                     </>
