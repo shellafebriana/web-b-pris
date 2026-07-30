@@ -86,7 +86,7 @@ const HeatmapChart = ({ data }) => {
   const year = now.getFullYear()
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg p-6 dark:bg-gray-800">
+      <div className="bg-white rounded-lg p-4 sm:p-6 dark:bg-gray-800">
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">
           Kalender Amplifikasi {new Date(year, month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
         </h3>
@@ -96,7 +96,7 @@ const HeatmapChart = ({ data }) => {
       </div>
     )
   }
-  const [hoveredCell, setHoveredCell] = useState(null)
+  const [selectedCell, setSelectedCell] = useState(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   
   const calendar = transformToCalendar(data, month, year)
@@ -104,21 +104,22 @@ const HeatmapChart = ({ data }) => {
   
   const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
   
-  const handleCellHover = (e, cell) => {
+  const handleCellClick = (e, cell) => {
     if (!cell) return
-    setHoveredCell(cell)
+    // Tap kotak yang sama lagi → tutup. Tap kotak lain → pindah.
+    if (selectedCell?.date === cell.date) {
+      setSelectedCell(null)
+      return
+    }
+    setSelectedCell(cell)
     setTooltipPos({
       x: e.clientX,
       y: e.clientY
     })
   }
   
-  const handleCellLeave = () => {
-    setHoveredCell(null)
-  }
-  
   return (
-    <div className="bg-white rounded-lg p-6 dark:bg-gray-800">
+    <div className="bg-white rounded-lg p-4 sm:p-6 dark:bg-gray-800">
       <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">
         Kalender Amplifikasi {new Date(year, month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
       </h3>
@@ -138,10 +139,9 @@ const HeatmapChart = ({ data }) => {
               {week.map((cell, dayIdx) => (
                 <div
                   key={dayIdx}
-                  onMouseEnter={(e) => handleCellHover(e, cell)}
-                  onMouseLeave={handleCellLeave}
+                  onClick={(e) => handleCellClick(e, cell)}
                   className={`h-10 rounded cursor-pointer transition-all ${
-                    cell === null ? 'bg-transparent' : `${getColorByIntensity(cell.count, maxCount)} hover:ring-2 hover:ring-offset-1`
+                    cell === null ? 'bg-transparent' : `${getColorByIntensity(cell.count, maxCount)} hover:ring-2 hover:ring-offset-1 ${selectedCell?.date === cell.date ? 'ring-2 ring-brand-500 ring-offset-1' : ''}`
                   }`}
                 >
                   {cell && (
@@ -156,17 +156,21 @@ const HeatmapChart = ({ data }) => {
         </div>
       </div>
       
-      {hoveredCell && (
-        <div
-          className="fixed bg-gray-900 text-white px-3 py-2 rounded text-sm z-50 pointer-events-none"
-          style={{
-            left: `${tooltipPos.x + 10}px`,
-            top: `${tooltipPos.y + 10}px`
-          }}
-        >
-          <div>{hoveredCell.date}</div>
-          <div className="text-xs text-gray-300">{hoveredCell.count} link</div>
-        </div>
+      {selectedCell && (
+        <>
+        {/* Tap di luar tooltip buat nutup */}
+        <div className="fixed inset-0 z-40" onClick={() => setSelectedCell(null)} />
+          <div
+            className="fixed bg-gray-900 text-white px-3 py-2 rounded text-sm z-50"
+            style={{
+              left: `${tooltipPos.x + 10}px`,
+              top: `${tooltipPos.y + 10}px`
+            }}
+          >
+            <div>{selectedCell.date}</div>
+            <div className="text-xs text-gray-300">{selectedCell.count} link</div>
+          </div>
+        </>
       )}
       
       <div className="mt-6 flex items-center gap-4 text-xs">

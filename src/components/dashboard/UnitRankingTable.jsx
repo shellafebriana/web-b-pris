@@ -1,13 +1,14 @@
-const UnitRankingTable = ({ data }) => {
+const UnitRankingTable = ({ data, title = 'Keaktifan Polsek dalam Amplifikasi Media Sosial' }) => {
   const now = new Date()
   const month = now.getMonth()
   const year = now.getFullYear()
+  const monthLabel = new Date(year, month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
   // Check if data is null atau empty
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg p-6 dark:bg-gray-800">
+      <div className="bg-white rounded-lg p-4 sm:p-6 dark:bg-gray-800">
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">
-            Keaktifan Polsek dalam Amplifikasi Media Sosial Bulan {new Date(year, month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+            {title} Bulan {monthLabel}
         </h3>
         <div className="text-center text-gray-500 dark:text-gray-400 py-8">
           Tidak ada data
@@ -17,10 +18,10 @@ const UnitRankingTable = ({ data }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg p-6 dark:bg-gray-800">
+    <div className="bg-white rounded-lg p-4 sm:p-6 dark:bg-gray-800">
       {/* Title */}
       <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">
-        Keaktifan Polsek dalam Amplifikasi Media Sosial Bulan {new Date(year, month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+        {title} Bulan {monthLabel}
       </h3>
 
       {/* Table */}

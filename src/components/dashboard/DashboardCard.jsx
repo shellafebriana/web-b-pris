@@ -31,7 +31,7 @@ const DashboardCard = ({data}) => {
 
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:gap-6">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 md:gap-6">
       {cards.map((card) => (
         <div key={card.id} className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/3 md:p-6">
           <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">

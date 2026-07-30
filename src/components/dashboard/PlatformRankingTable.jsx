@@ -2,9 +2,10 @@ const PlatformRankingTable = ({ data }) => {
   const now = new Date()
   const month = now.getMonth()
   const year = now.getFullYear()
+  const monthLabel = new Date(year, month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg p-6 dark:bg-gray-800">
+      <div className="bg-white rounded-lg p-4 sm:p-6 dark:bg-gray-800">
         <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">
           Top Platform Media Sosial
         </h3>
@@ -16,9 +17,9 @@ const PlatformRankingTable = ({ data }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg p-6 dark:bg-gray-800">
+    <div className="bg-white rounded-lg p-4 sm:p-6 dark:bg-gray-800">
       <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">
-        Top Platform Media Sosial Bulan {new Date(year, month).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
+        Top Platform Media Sosial Bulan {monthLabel}
       </h3>
 
       <div className="overflow-x-auto">

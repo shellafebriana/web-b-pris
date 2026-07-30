@@ -1,9 +1,7 @@
 name: Deploy to Vercel
 
 on:
-  push:
-    branches: [master]
-  workflow_dispatch: {} # bisa trigger manual lewat tombol "Run workflow" di tab Actions
+  workflow_dispatch: {} # deploy HANYA saat kamu klik tombol "Run workflow" di tab Actions
 
 jobs:
   deploy:

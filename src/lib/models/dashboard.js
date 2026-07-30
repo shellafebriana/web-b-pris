@@ -108,7 +108,7 @@ export async function getTodayStats(formatIds) {
   }
 }
 
-export async function getUnitRanking() {
+async function getUnitRankingByFormat(formatId) {
   const { startOfMonth, endOfMonth } = getMonthRange()
 
   const units = await prisma.unit.findMany({
@@ -117,7 +117,7 @@ export async function getUnitRanking() {
       _count: {
         select: {
           links: {
-            where: { session: { createdAt: { gte: startOfMonth, lte: endOfMonth }, formatId: 'format1' } }
+            where: { session: { createdAt: { gte: startOfMonth, lte: endOfMonth }, formatId } }
           }
         }
       }
@@ -127,6 +127,15 @@ export async function getUnitRanking() {
   return units
     .sort((a, b) => b._count.links - a._count.links)
     .map((unit, index) => ({ no: index + 1, namaUnit: unit.name, jumlahLink: unit._count.links }))
+}
+
+export async function getUnitRankingSocial() {
+  return getUnitRankingByFormat('format1')
+}
+
+// Ranking Media Online — sama polanya, format13
+export async function getUnitRankingOnline() {
+  return getUnitRankingByFormat('format16')
 }
 
 export async function getPlatformRanking(formatIds) {
@@ -156,16 +165,18 @@ export async function getDashboardOverview() {
   const month = indonesiaTime.getUTCMonth()
   const year = indonesiaTime.getUTCFullYear()
 
-  const [stats, unitRanking, platformRanking, grouped] = await Promise.all([
+  const [stats, unitRankingSocial, unitRankingOnline, platformRanking, grouped] = await Promise.all([
     getTodayStats(formatIds),
-    getUnitRanking(),
+    getUnitRankingSocial(),
+    getUnitRankingOnline(),
     getPlatformRanking(formatIds),
     getUniqueLinkGroupedByDate(formatIds),
   ])
 
   return {
     stats,
-    unitRanking,
+    unitRankingSocial,
+    unitRankingOnline,
     platformRanking,
     heatmap: buildHeatmap(grouped),
     weeklyTrend: buildWeeklyTrend(grouped, month, year),

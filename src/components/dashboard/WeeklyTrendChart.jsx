@@ -47,48 +47,48 @@ const WeeklyTrendChart = ({ data }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg p-6 dark:bg-gray-800">
+    <div className="bg-white rounded-lg p-4 sm:p-6 dark:bg-gray-800">
       {/* Title */}
       <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">
         Perbandingan Total Amplifikasi Mingguan
       </h3>
 
       {/* Chart */}
-      <ResponsiveContainer width="100%" height={300}>
-        <ComposedChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-          <XAxis 
-            dataKey="period"  // ← Pakai period label dari API
-            stroke="#6b7280"
-            style={{ fontSize: '11px' }}
-          />
-          <YAxis 
-            stroke="#6b7280"
-            style={{ fontSize: '12px' }}
-          />
-          <Tooltip content={<CustomTooltip />} />  {/* ← Custom tooltip */}
-          <Legend />
-          
-          {/* Bar chart untuk total */}
-          <Bar 
-            dataKey="count" 
-            fill="#3b82f6" 
-            name="Total Link"
-            radius={[8, 8, 0, 0]}
-            barSize={40}  // ← Lebih sempit dari default
-          />
-          
-          {/* Line chart untuk perbandingan */}
-          <Line 
-            type="monotone" 
-            dataKey="count" 
-            stroke="#ef4444" 
-            strokeWidth={2}
-            dot={{ fill: '#ef4444', r: 4 }}
-            name="Perbandingan"
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      <div className="h-[220px] sm:h-[280px] lg:h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis 
+              dataKey="period"
+              stroke="#6b7280"
+              style={{ fontSize: '11px' }}
+            />
+            <YAxis 
+              stroke="#6b7280"
+              style={{ fontSize: '12px' }}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend />
+            
+            <Bar 
+              dataKey="count" 
+              fill="#3b82f6" 
+              name="Total Link"
+              radius={[8, 8, 0, 0]}
+              barSize={40}
+            />
+            
+            <Line 
+              type="monotone" 
+              dataKey="count" 
+              stroke="#ef4444" 
+              strokeWidth={2}
+              dot={{ fill: '#ef4444', r: 4 }}
+              name="Perbandingan"
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
