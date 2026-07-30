@@ -119,7 +119,7 @@ export async function getSessionMetaCounts(sessionId, config, units, platforms) 
 
 // Daftar link paginated — dipake SessionLinksList. Ganti dari "fetch semua +
 // filter di client" jadi "server yang query, browser cuma nerima 1 halaman"
-export async function getSessionLinksPage(sessionId, { search = '', platform = '', page = 1, limit = 50 } = {}) {
+export async function getSessionLinksPage(sessionId, { search = '', platform = '', page = 1, limit = 50, sortByUnit = false } = {}) {
   const skip = (page - 1) * limit
   const where = {
     sessionId,
@@ -127,12 +127,16 @@ export async function getSessionLinksPage(sessionId, { search = '', platform = '
     ...(platform ? { platform: { name: platform } } : {}),
   }
 
+  const orderBy = sortByUnit
+    ? [{ unit: { name: 'asc' } }, { createdAt: 'asc' }]
+    : { createdAt: 'asc' }
+
   const [total, links] = await Promise.all([
     prisma.link.count({ where }),
     prisma.link.findMany({
       where,
       include: { platform: true, unit: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy,
       skip,
       take: limit,
     }),
@@ -661,4 +665,23 @@ export async function generateReport(sessionId) {
   })
 
   return { text }
+}
+
+export async function deleteLinks(linkIds, sessionId) {
+  if (!linkIds || linkIds.length === 0) throw new Error('Gak ada link yang dipilih')
+
+  let deletedCount = 0
+  await prisma.$transaction(async (tx) => {
+    const deleted = await tx.link.deleteMany({
+      where: { id: { in: linkIds.map((id) => BigInt(id)) }, sessionId },
+    })
+    if (deleted.count === 0) throw new Error('Link tidak ditemukan di sesi ini')
+    deletedCount = deleted.count
+    await tx.rekapSession.update({
+      where: { id: sessionId },
+      data: { totalLinks: { decrement: deleted.count } },
+    })
+  }, { maxWait: 10000, timeout: 10000 })
+
+  return { deleted: deletedCount }
 }

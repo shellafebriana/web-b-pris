@@ -39,7 +39,13 @@ export default async function DetailSesiRekapPage({ params, searchParams }) {
 
   const [metaCounts, linksPage, usedPlatformIds] = await Promise.all([
     getSessionMetaCounts(id, config, units, platforms),
-    getSessionLinksPage(id, { search: linkSearch, platform: linkPlatform, page: linkPage, limit: LINKS_PER_PAGE }),
+    getSessionLinksPage(id, {
+      search: linkSearch,
+      platform: linkPlatform,
+      page: linkPage,
+      limit: LINKS_PER_PAGE,
+      sortByUnit: requiresUnit,
+    }),
     getSessionLinkPlatformIds(id),
   ])
 

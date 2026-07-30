@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { importBulkMediaOnlineAction, checkImportGroupsAction } from '@/app/(admin)/sesi-rekap/actions'
 import { useToast } from '@/context/ToastProvider'
 import { detectPlatformIdWithFallback, isPlatformAllowed, filterPlatformsByFormat } from '@/lib/platform-detect'
-import { preprocessRaw, parseWaLine, detectUnitFromSender, getArticleSlug, slugToTitle } from '@/lib/wa-paste-parser'
+import { preprocessRaw, parseWaLine, detectUnitFromSender, detectUnitFromText, getArticleSlug, slugToTitle } from '@/lib/wa-paste-parser'
 import { normalizeUrl } from '@/lib/url-utils'
 
 const initialState = { error: null }
@@ -48,24 +48,50 @@ export default function ImportBulkForm({ formats, platforms, units }) {
     const preprocessed = preprocessRaw(raw)
     const lines = preprocessed.split('\n').map((l) => l.trim()).filter(Boolean)
     const groupMap = new Map()
+    let currentUnitId = null
+    let currentUnitName = null
     let ignoredCount = 0
 
     for (const line of lines) {
       let url = null
-      let unitId = null
-      let unitName = null
 
       const waResult = parseWaLine(line)
       if (waResult) {
-        if (waResult.type === 'wa_no_url') { ignoredCount++; continue }
-        url = waResult.url
         if (requiresUnit) {
-          const senderUnit = detectUnitFromSender(waResult.sender, units)
-          if (senderUnit) { unitId = senderUnit.id; unitName = senderUnit.name }
+          const textForUnit = waResult.type === 'wa_url'
+            ? waResult.content.replace(waResult.url, '').trim()
+            : waResult.content
+          const contentUnit = detectUnitFromText(textForUnit, units)
+          if (contentUnit) {
+            currentUnitId = contentUnit.id
+            currentUnitName = contentUnit.name
+          } else {
+            const senderUnit = detectUnitFromSender(waResult.sender, units)
+            if (senderUnit) {
+              currentUnitId = senderUnit.id
+              currentUnitName = senderUnit.name
+            }
+          }
         }
+      if (waResult.type === 'wa_no_url') { ignoredCount++; continue }
+      url = waResult.url
       } else {
         const stripped = line.replace(/^\d+\.\s*/, '')
-        if (!stripped.startsWith('http')) { ignoredCount++; continue }
+        if (!stripped.startsWith('http')) {
+          // BARU: cabang ini sebelumnya cuma ada di PasteBulkForm, sekarang
+          // ditambahin di sini juga — biar baris teks plain "NAMA UNIT" (tanpa
+          // format WA) konsisten dikenalin di kedua form
+          if (requiresUnit) {
+            const found = units.find((u) => u.name.toLowerCase() === stripped.toLowerCase())
+            if (found) {
+              currentUnitId = found.id
+              currentUnitName = found.name
+              continue
+            }
+          }
+          ignoredCount
+          continue
+        }
         url = stripped
       }
 
@@ -81,8 +107,13 @@ export default function ImportBulkForm({ formats, platforms, units }) {
         groupMap.set(slug, { slug, autoTitle: slugToTitle(slug), links: [], unitNames: new Set() })
       }
       const group = groupMap.get(slug)
-      group.links.push({ url, platformId, unitId: unitId || null, _restricted: Boolean(detectedPlatform && !allowed) })
-      if (unitName) group.unitNames.add(unitName)
+      group.links.push({
+        url,
+        platformId,
+        unitId: requiresUnit ? currentUnitId || null : null,
+        _restricted: Boolean(detectedPlatform && !allowed),
+      })
+      if (requiresUnit && currentUnitName) group.unitNames.add(currentUnitName)
     }
 
     const groups = [...groupMap.values()].map((g) => ({

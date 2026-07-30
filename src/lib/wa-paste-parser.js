@@ -19,14 +19,22 @@ export function parseWaLine(line) {
   const urlMatch = content.match(/https?:\/\/\S+/)
   if (!urlMatch) return { type: 'wa_no_url', sender, content }
 
-  return { type: 'wa_url', sender, url: urlMatch[0] }
+  return { type: 'wa_url', sender, url: urlMatch[0], content }
 }
 
-// Deteksi unit dari nama pengirim WA
-export function detectUnitFromSender(sender, units) {
-  const senderLower = sender.toLowerCase()
+// Deteksi unit dari TEKS APA PUN — dipake buat 2 skenario: (1) tebak dari nama
+// pengirim ("...Humas Polsek Glagah: ..."), (2) baca eksplisit dari isi pesan
+// ("*Glagah*") buat kasus pengirimnya BUKAN nama yang ngandung unit (misal
+// orang lain yang bantu operator kirimin link)
+export function detectUnitFromText(text, units) {
+  if (!text) return null
+  const textLower = text.toLowerCase()
   const sorted = [...units].sort((a, b) => b.name.length - a.name.length)
-  return sorted.find((u) => senderLower.includes(u.name.toLowerCase())) || null
+  return sorted.find((u) => textLower.includes(u.name.toLowerCase())) || null
+}
+
+export function detectUnitFromSender(sender, units) {
+  return detectUnitFromText(sender, units)
 }
 
 // ── Grouping buat Import Bulk Media Online ──

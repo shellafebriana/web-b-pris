@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { addLinksBulkAction } from '@/app/(admin)/sesi-rekap/actions'
 import { useToast } from '@/context/ToastProvider'
 import { detectPlatformIdWithFallback } from '@/lib/platform-detect'
-import { preprocessRaw, parseWaLine, detectUnitFromSender } from '@/lib/wa-paste-parser'
+import { preprocessRaw, parseWaLine, detectUnitFromSender, detectUnitFromText } from '@/lib/wa-paste-parser'
 import { normalizeUrl } from '@/lib/url-utils'
 import SearchableUnitSelect from './SearchableUnitSelect'
 
@@ -51,31 +51,39 @@ export default function PasteBulkForm({
     const seenUrls = new Set(existingUrls)
 
     for (const line of lines) {
-      // ── Coba parse sebagai format WhatsApp dulu ──
       const waResult = parseWaLine(line)
       if (waResult) {
+        // Cek isi pesan dulu (misal "*Glagah*") — menang duluan kalau ketemu.
+        // Baru kalau isi pesannya gak nyebut unit apa pun, fallback ke tebak
+        // dari nama pengirim. Ini WAJIB dicek di sini (sebelum wa_no_url
+        // di-skip) — pesan tanpa link (operator nulis nama unit doang) tetep
+        // harus ngupdate context unit buat link-link sesudahnya.
+        if (requiresUnit) {
+          const textForUnit = waResult.type === 'wa_url'
+            ? waResult.content.replace(waResult.url, '').trim()
+            : waResult.content
+          const contentUnit = detectUnitFromText(textForUnit, units)
+          if (contentUnit) {
+            currentUnitId = contentUnit.id
+            currentUnitName = contentUnit.name
+          } else {
+            const senderUnit = detectUnitFromSender(waResult.sender, units)
+            if (senderUnit) {
+              currentUnitId = senderUnit.id
+              currentUnitName = senderUnit.name
+            }
+          }
+        }
+
         if (waResult.type === 'wa_no_url') {
           ignoredCount++
           continue
         }
 
-        // wa_url: ada URL + sender
         const url = waResult.url
-
-        // Deteksi unit dari nama pengirim (kalau format butuh unit)
-        if (requiresUnit) {
-          const senderUnit = detectUnitFromSender(waResult.sender, units)
-          if (senderUnit) {
-            currentUnitId = senderUnit.id
-            currentUnitName = senderUnit.name
-          }
-        }
-
-        // Deteksi platform (dengan fallback ke "Lainnya")
         const detectedId = detectPlatformIdWithFallback(url, platforms)
         const detectedPlatform = detectedId ? platforms.find((p) => p.id === detectedId) : null
         const detectedAllowed = detectedPlatform ? allowedPlatforms.some((p) => p.id === detectedPlatform.id) : true
-
         const platformId = detectedId && detectedAllowed ? detectedId : defaultPlatformId || ''
         const unitId = requiresUnit ? currentUnitId || defaultUnitId || '' : ''
         const normalized = normalizeUrl(url)
@@ -93,7 +101,6 @@ export default function PasteBulkForm({
         continue
       }
 
-      // ── Bukan format WA — fallback ke parsing biasa ──
       const stripped = line.replace(/^\d+\.\s*/, '')
       if (!stripped.startsWith('http')) {
         if (requiresUnit) {
@@ -108,17 +115,14 @@ export default function PasteBulkForm({
         continue
       }
 
-      // Plain URL
       const detectedId = detectPlatformIdWithFallback(stripped, platforms)
       const detectedPlatform = detectedId ? platforms.find((p) => p.id === detectedId) : null
       const detectedAllowed = detectedPlatform ? allowedPlatforms.some((p) => p.id === detectedPlatform.id) : true
-
       const platformId = detectedId && detectedAllowed ? detectedId : defaultPlatformId || ''
       const unitId = requiresUnit ? currentUnitId || defaultUnitId || '' : ''
       const normalized = normalizeUrl(stripped)
       const isDuplicate = seenUrls.has(normalized)
       if (!isDuplicate) seenUrls.add(normalized)
-
       items.push({
         url: stripped,
         platformId,
@@ -130,7 +134,7 @@ export default function PasteBulkForm({
       })
     }
     return { items, ignoredCount }
-  }, [raw, defaultPlatformId, defaultUnitId, units, platforms, allowedPlatforms, requiresUnit])
+  }, [raw, defaultPlatformId, defaultUnitId, units, platforms, allowedPlatforms, requiresUnit, existingUrls])
 
   const { items: parsedItems, ignoredCount } = parsed
   const missingPlatformCount = parsedItems.filter((i) => !i.platformId).length
@@ -157,7 +161,6 @@ export default function PasteBulkForm({
       />
 
       <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
-        {/* ── Kiri: Input ── */}
         <div className="flex w-full flex-col border-b border-gray-200 dark:border-gray-800 md:w-1/2 md:border-b-0 md:border-r">
           <div className="p-5 md:flex-1 md:overflow-y-auto">
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -175,14 +178,13 @@ export default function PasteBulkForm({
             />
             <p className="mt-1.5 text-xs text-gray-400">
               Platform otomatis terdeteksi dari domain URL (domain gak dikenal → Lainnya){platformsRestricted ? ', dibatasi sesuai format sesi ini' : ''}.
-              {requiresUnit && ' Unit terdeteksi dari nama pengirim WhatsApp, atau tulis nama unit di barisnya sendiri.'}
+              {requiresUnit && ' Unit terdeteksi dari nama pengirim WhatsApp / isi pesan, atau tulis nama unit di barisnya sendiri.'}
             </p>
             {ignoredCount > 0 && (
               <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                 {ignoredCount} baris diabaikan (gak ada URL{requiresUnit ? ' atau nama unit yang dikenali' : ''})
               </p>
             )}
-
             <div className={`mt-4 grid grid-cols-1 gap-4 ${requiresUnit ? 'lg:grid-cols-2' : ''}`}>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -214,7 +216,6 @@ export default function PasteBulkForm({
           </div>
         </div>
 
-        {/* ── Kanan: Preview ── */}
         <div className="flex w-full flex-col md:w-1/2">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-5 py-3 dark:border-gray-800">
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -225,7 +226,7 @@ export default function PasteBulkForm({
                 <span className="text-xs text-error-600 dark:text-error-400">{missingPlatformCount} belum ada platform</span>
               )}
               {conflictCount > 0 && (
-                <span className="text-xs text-amber-600 dark:text-amber-400">{conflictCount} platform tidak cocok</span>
+                <span className="text-xs text-amber-600 dark:text-amber-400">{conflictCount} platform gak cocok</span>
               )}
               {duplicateCount > 0 && (
                 <span className="text-xs text-gray-400">{duplicateCount} duplikat</span>
@@ -246,9 +247,9 @@ export default function PasteBulkForm({
                       ? 'bg-error-50 dark:bg-error-500/10'
                       : item._conflictName
                         ? 'bg-amber-50 dark:bg-amber-500/10'
-                      : item._isDuplicate
-                        ? 'opacity-50'
-                      : ''
+                        : item._isDuplicate
+                          ? 'opacity-50'
+                          : ''
                   }`}
                 >
                   {item._platformName ? (
@@ -260,10 +261,10 @@ export default function PasteBulkForm({
                       ?
                     </span>
                   )}
-                  {item._isDuplicate && (
-                    <span className="shrink-0 text-gray-400" title="Link sudah ada di sesi ini / ke-paste 2x">duplikat</span>
-                  )}
                   <span className="min-w-0 flex-1 truncate font-mono text-gray-500 dark:text-gray-400">{item.url}</span>
+                  {item._isDuplicate && (
+                    <span className="shrink-0 text-gray-400" title="Udah ada di sesi ini / ke-paste 2x">duplikat</span>
+                  )}
                   {item._conflictName && (
                     <span className="shrink-0 text-amber-600 dark:text-amber-400" title={`Kedeteksi dari ${item._conflictName}`}>
                       ⚠ {item._conflictName}?
@@ -277,7 +278,6 @@ export default function PasteBulkForm({
         </div>
       </div>
 
-      {/* ── Bottom bar ── */}
       <div className="flex shrink-0 flex-wrap items-center gap-3 border-t border-gray-200 bg-white px-5 py-3 dark:border-gray-800 dark:bg-gray-900">
         <button
           type="submit"

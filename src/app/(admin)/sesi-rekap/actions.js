@@ -12,7 +12,8 @@ import {
   createRekapSession,
   generateReport,
   createBulkRekapSessions,
-  checkGroupsAgainstExistingSessions
+  checkGroupsAgainstExistingSessions,
+  deleteLinks,
 } from '@/lib/models/rekapSession'
 
 async function requireAdmin() {
@@ -174,6 +175,17 @@ export async function importBulkMediaOnlineAction(prevState, formData) {
       failedTitles: failed.map((r) => r.title),
     }
    } catch (error) {
+    return { error: error.message }
+  }
+}
+
+export async function deleteLinksAction(linkIds, sessionId) {
+  await requireAdmin()
+  try {
+    const result = await deleteLinks(linkIds, sessionId)
+    revalidatePath(`/sesi-rekap/${sessionId}`)
+    return { success: true, deleted: result.deleted }
+  } catch (error) {
     return { error: error.message }
   }
 }
