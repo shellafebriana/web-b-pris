@@ -5,7 +5,8 @@ const WA_LINE_REGEX = /^\[[\d.,:\/ ]+\]\s*(.+?):\s*(.*)$/
 
 // Pre-process: split pesan WA yang nempel tanpa newline
 export function preprocessRaw(raw) {
-  return raw.replace(/(\S)\[(\d)/g, '$1\n[$2')
+  const cleaned = raw.replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, '')
+  return cleaned.replace(/(\S)\[(\d)/g, '$1\n[$2')
 }
 
 // Parse 1 baris
