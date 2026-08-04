@@ -51,6 +51,7 @@ model RekapSession {
   state       String       @default("draft")
   totalLinks  Int          @default(0)
   summaryJson Json?
+  contentDate DateTime?   
   createdAt   DateTime     @default(now())
   completedAt DateTime?
   links       Link[]
@@ -60,14 +61,17 @@ model RekapSession {
   @@index([formatId], map: "RekapSession_formatId_fkey")
   @@index([operatorId], map: "RekapSession_operatorId_fkey")
   @@unique([formatId, title(length: 191)])
+  @@index([formatId, contentDate])
 }
 
 model Platform {
   id     BigInt @id @default(autoincrement())
-  name   String @unique
+  name   String @unique    
   domain Json?
   category String @default("online") // "sosmed" | "online"
   links  Link[]
+  shortName String?   
+  sortOrder Int    @default(99)
 }
 
 model Unit {
@@ -92,6 +96,7 @@ model Link {
   @@index([platformId], map: "Link_platformId_fkey")
   @@index([sessionId], map: "Link_sessionId_fkey")
   @@index([unitId], map: "Link_unitId_fkey")
+  @@index([sessionId, unitId, platformId]) 
 }
 
 model User {
