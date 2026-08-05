@@ -1,10 +1,6 @@
-/**
- * Server Component. Cuma <a href> — nol JS, jadi tetap jalan di sinyal merah.
- * Query-nya sengaja sama persis dengan halaman, biar isi file = isi layar.
- */
-export default function ExportButtons({ periode, disabled }) {
+export default function ExportButtons({ jenis, periode, disabled }) {
   const q = `mode=${periode.mode}&periode=${encodeURIComponent(periode.periode)}`
-  const base = '/api/laporan/media-sosial/export'
+  const base = `/api/laporan/rekap/${jenis}/export`
 
   const kelas =
     'rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-800'

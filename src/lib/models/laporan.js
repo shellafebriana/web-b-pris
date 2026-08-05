@@ -1,18 +1,17 @@
 import prisma from '@/lib/prisma'
+import { buildBuckets, bucketKey } from '@/lib/laporan/periode'
 
-/** Format default kalau user belum milih apa-apa di filter. */
-export const FORMAT_MEDSOS = 'format1'
+export const FORMAT_MEDIA_SOSIAL = 'format1'
+export const FORMAT_MEDIA_ONLINE = 'format16'
 
-
-/** Isi dropdown filter. ReportFormat.id String, jadi gak ada urusan BigInt. */
-export async function getFormatMedsos() {
+/** Cek format sumber masih ada & aktif — biar format non-aktif gak jadi tabel kosong misterius. */
+export async function getFormatLaporan(id) {
   return prisma.reportFormat.findUnique({
-    where: { id: FORMAT_MEDSOS },
+    where: { id },
     select: { id: true, name: true, isActive: true },
   })
 }
 
-/** Kolom tabel = platform sosmed, urut sortOrder. BigInt -> string di layer ini. */
 export async function getPlatformSosmed() {
   const rows = await prisma.platform.findMany({
     where: { category: 'sosmed' },
@@ -21,15 +20,13 @@ export async function getPlatformSosmed() {
   })
   return rows.map((p) => ({
     id: p.id.toString(),
-    name: p.name,
-    shortName: p.shortName || p.name.slice(0, 2).toUpperCase(),
+    key: p.id.toString(),
+    label: p.shortName || p.name.slice(0, 2).toUpperCase(),
+    subLabel: p.name,
   }))
 }
 
-/**
- * Filter periode di level SESI: COALESCE(contentDate, createdAt).
- * contentDate NULL = ikut createdAt, jadi data lama gak berubah perilakunya.
- */
+/** Periode di level SESI: COALESCE(contentDate, createdAt). */
 function filterPeriodeSesi({ formatIds, start, end }) {
   return {
     formatId: { in: formatIds },
@@ -40,65 +37,112 @@ function filterPeriodeSesi({ formatIds, start, end }) {
   }
 }
 
-/**
- * Rekap Media Sosial: matriks unit x platform.
- * Hitungan dikerjain DB lewat groupBy — bukan tarik semua Link lalu hitung di JS.
- * Hasil groupBy paling banyak 26 unit x 7 platform = 182 baris, murah dirakit.
- */
-export async function getRekapMediaSosial({ formatIds, start, end, unitType = 'POLSEK' }) {
-  const platforms = await getPlatformSosmed()
+const HASIL_KOSONG = (columns) => ({
+  columns, rows: [], totalPerColumn: {}, totalSemua: 0, adaData: false,
+})
 
-  if (!Array.isArray(formatIds) || formatIds.length === 0 || platforms.length === 0) {
-    return { platforms, rows: [], totalPerPlatform: {}, totalSemua: 0, adaData: false }
-  }
+/** Rakit matriks unit x kolom. `counts` = Map(unitId -> { colKey: jumlah }) */
+function rakitMatriks({ units, columns, counts }) {
+  const totalPerColumn = {}
+  for (const c of columns) totalPerColumn[c.key] = 0
+  let totalSemua = 0
+
+  // Iterasi dari daftar unit (bukan hasil query) supaya unit tanpa data tetap
+  // muncul dengan nilai 0 — biar rankingnya jujur.
+  let rows = units.map((u) => {
+    const id = u.id.toString()
+    const raw = counts.get(id) || {}
+    const isi = {}
+    let total = 0
+    for (const c of columns) {
+      const n = raw[c.key] || 0
+      isi[c.key] = n
+      total += n
+      totalPerColumn[c.key] += n
+    }
+    totalSemua += total
+    return { id, name: u.name, counts: isi, total }
+  })
+
+  rows.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'id'))
+  rows = rows.map((r, i) => ({ ...r, rank: i + 1 }))
+
+  return { columns, rows, totalPerColumn, totalSemua, adaData: totalSemua > 0 }
+}
+
+function ambilUnits(unitType) {
+  return prisma.unit.findMany({
+    where: { type: unitType },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  })
+}
+
+/** MEDIA SOSIAL — kolom = platform sosmed. */
+export async function getRekapMediaSosial({ formatIds, periode, unitType = 'POLSEK' }) {
+  const columns = await getPlatformSosmed()
+  if (!formatIds?.length || columns.length === 0) return HASIL_KOSONG(columns)
 
   const [units, grouped] = await Promise.all([
-    prisma.unit.findMany({
-      where: { type: unitType },
-      select: { id: true, name: true },
-      orderBy: { name: 'asc' },
-    }),
+    ambilUnits(unitType),
     prisma.link.groupBy({
       by: ['unitId', 'platformId'],
       where: {
         unitId: { not: null },
         platform: { category: 'sosmed' },
-        session: filterPeriodeSesi({ formatIds, start, end }),
+        session: filterPeriodeSesi({ formatIds, start: periode.start, end: periode.end }),
       },
       _count: { _all: true },
     }),
   ])
 
-  // unitId -> { platformId -> jumlah }
-  const peta = new Map()
+  const counts = new Map()
   for (const g of grouped) {
     const uid = g.unitId.toString()
-    if (!peta.has(uid)) peta.set(uid, {})
-    peta.get(uid)[g.platformId.toString()] = g._count._all
+    if (!counts.has(uid)) counts.set(uid, {})
+    counts.get(uid)[g.platformId.toString()] = g._count._all
   }
 
-  const totalPerPlatform = {}
-  for (const p of platforms) totalPerPlatform[p.id] = 0
-  let totalSemua = 0
+  return rakitMatriks({ units, columns, counts })
+}
 
-  // Iterasi dari daftar unit (bukan dari hasil groupBy) supaya polsek tanpa data
-  // tetap muncul dengan nilai 0 — biar rankingnya jujur.
-  let rows = units.map((u) => {
-    const raw = peta.get(u.id.toString()) || {}
-    const counts = {}
-    let total = 0
-    for (const p of platforms) {
-      const n = raw[p.id] || 0
-      counts[p.id] = n
-      total += n
-      totalPerPlatform[p.id] += n
-    }
-    totalSemua += total
-    return { unitId: u.id.toString(), unitName: u.name, counts, total }
+/**
+ * MEDIA ONLINE — kolom = bucket periode (minggu/bulan).
+ * Link gak punya tanggal sendiri, jadi bucket diturunkan dari tanggal efektif SESI.
+ * Dua query: ambil sesi dulu (maping sesi->bucket), baru groupBy link.
+ */
+export async function getRekapMediaOnline({ formatIds, periode, unitType = 'POLSEK' }) {
+  const columns = buildBuckets(periode)
+  if (!formatIds?.length) return HASIL_KOSONG(columns)
+
+  const sesi = await prisma.rekapSession.findMany({
+    where: filterPeriodeSesi({ formatIds, start: periode.start, end: periode.end }),
+    select: { id: true, contentDate: true, createdAt: true },
   })
+  if (sesi.length === 0) return HASIL_KOSONG(columns)
 
-  rows.sort((a, b) => b.total - a.total || a.unitName.localeCompare(b.unitName, 'id'))
-  rows = rows.map((r, i) => ({ ...r, rank: i + 1 }))
+  const bucketSesi = new Map(
+    sesi.map((s) => [s.id, bucketKey(s.contentDate ?? s.createdAt, periode)])
+  )
 
-  return { platforms, rows, totalPerPlatform, totalSemua, adaData: totalSemua > 0 }
+  const [units, grouped] = await Promise.all([
+    ambilUnits(unitType),
+    prisma.link.groupBy({
+      by: ['unitId', 'sessionId'],
+      where: { unitId: { not: null }, sessionId: { in: [...bucketSesi.keys()] } },
+      _count: { _all: true },
+    }),
+  ])
+
+  const counts = new Map()
+  for (const g of grouped) {
+    const uid = g.unitId.toString()
+    const key = bucketSesi.get(g.sessionId)
+    if (!key) continue
+    if (!counts.has(uid)) counts.set(uid, {})
+    const isi = counts.get(uid)
+    isi[key] = (isi[key] || 0) + g._count._all
+  }
+
+  return rakitMatriks({ units, columns, counts })
 }

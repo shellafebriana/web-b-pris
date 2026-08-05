@@ -385,8 +385,6 @@ async function findSessionByNormalizedTitle(client, formatId, title) {
   return candidates.find((c) => normalizeTitleForMatch(c.title) === target) || null
 }
 
-
-
 async function processGroup(group, formatId, operatorId, config, dateRange, platformNameById, attempt = 0) {
   const titleTrimmed = group.title?.trim() || ''
 
@@ -460,6 +458,7 @@ async function processGroup(group, formatId, operatorId, config, dateRange, plat
             operatorId,
             title: titleTrimmed || null,
             dateRange: dateRange?.trim() || null,
+            contentDate: group.contentDate ? new Date(group.contentDate) : null,
             totalLinks: dedupedLinks.length,
           },
         })

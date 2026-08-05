@@ -79,6 +79,7 @@ model Unit {
   name  String @unique
   type  String
   links Link[]
+  domains Json?
 }
 
 model Link {
@@ -92,6 +93,8 @@ model Link {
   platform   Platform     @relation(fields: [platformId], references: [id])
   session    RekapSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   unit       Unit?        @relation(fields: [unitId], references: [id])
+  @@index([url(length: 191)])
+
 
   @@index([platformId], map: "Link_platformId_fkey")
   @@index([sessionId], map: "Link_sessionId_fkey")
