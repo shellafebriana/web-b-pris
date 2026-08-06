@@ -1,23 +1,55 @@
 import { WARNA, JUDUL_1, tandaBaris } from './rekapMedsosStyle'
 
 const W_NO = 56
-const W_ENTITAS = 210
+const W_ENTITAS_MIN = 210
 const W_TOTAL = 96
+const W_KOL_MAX = 220
 const H_BARIS = 40
 const H_HEADER_TABEL = 48
 const PAD = 20
 const TINGGI_JUDUL = 118
 
+// Mode harian cuma punya 1 kolom nilai, jadi lebar alaminya ~378px — kekecilan
+// buat dibagikan. Ambang ini bikin semua mode keluar dengan lebar setara.
+const LEBAR_MIN = 760
+
 const fmt = (n) => new Intl.NumberFormat('id-ID').format(n)
 
-const lebarKolom = (jumlah) => (jumlah > 8 ? 58 : 72)
+/**
+ * Satu-satunya tempat lebar dihitung. ukuranGambar() dan buildRekapElement()
+ * dua-duanya pakai ini — kalau dihitung terpisah, kanvas dan isinya bisa beda
+ * dan gambarnya kepotong.
+ */
+function hitungLayout(data) {
+  const jml = data.columns.length
+  const pakaiTotal = jml > 1
+  const wTotal = pakaiTotal ? W_TOTAL : 0
+  let wKol = jml > 8 ? 58 : 72
+  let wEntitas = W_ENTITAS_MIN
 
-export function ukuranGambar({ data }) {
-  const wKol = lebarKolom(data.columns.length)
+  const lebarSekarang = () => PAD * 2 + W_NO + wEntitas + jml * wKol + wTotal
+
+  const kurang = LEBAR_MIN - lebarSekarang()
+  if (kurang > 0) {
+    // 55% surplus ke kolom nilai (dibatasi W_KOL_MAX), sisanya ke kolom polsek.
+    const keKolom = Math.min(Math.round(kurang * 0.55), jml * (W_KOL_MAX - wKol))
+    wKol += Math.floor(keKolom / jml)
+    wEntitas += LEBAR_MIN - lebarSekarang()
+  }
+
   return {
-    width: PAD * 2 + W_NO + W_ENTITAS + data.columns.length * wKol + W_TOTAL,
+    pakaiTotal,
+    wKol,
+    wEntitas,
+    wTotal,
+    width: lebarSekarang(),
     height: PAD * 2 + TINGGI_JUDUL + H_HEADER_TABEL + H_BARIS * (data.rows.length + 1),
   }
+}
+
+export function ukuranGambar({ data }) {
+  const { width, height } = hitungLayout(data)
+  return { width, height }
 }
 
 /**
@@ -28,8 +60,7 @@ export function ukuranGambar({ data }) {
  */
 export function buildRekapElement({ data, judulCetak, labelJudul }) {
   const { columns, rows, totalPerColumn, totalSemua } = data
-  const wKol = lebarKolom(columns.length)
-  const { width, height } = ukuranGambar({ data })
+  const { pakaiTotal, wKol, wEntitas, wTotal, width, height } = hitungLayout(data)
 
   const sel = (isi, w, align = 'center', bold = false, warna = WARNA.teks, h = H_BARIS) => (
     <div
@@ -60,7 +91,7 @@ export function buildRekapElement({ data, judulCetak, labelJudul }) {
       {/* Header tabel */}
       <div style={{ display: 'flex', backgroundColor: WARNA.headerBg, height: H_HEADER_TABEL }}>
         {sel('NO', W_NO, 'center', true, WARNA.headerText, H_HEADER_TABEL)}
-        {sel('POLSEK', W_ENTITAS, 'left', true, WARNA.headerText, H_HEADER_TABEL)}
+        {sel('POLSEK', wEntitas, 'left', true, WARNA.headerText, H_HEADER_TABEL)}
         {columns.map((c) => (
           <div
             key={c.key}
@@ -80,35 +111,37 @@ export function buildRekapElement({ data, judulCetak, labelJudul }) {
             )}
           </div>
         ))}
-        {sel('TOTAL', W_TOTAL, 'center', true, WARNA.headerText, H_HEADER_TABEL)}
+        {pakaiTotal && sel('TOTAL', wTotal, 'center', true, WARNA.headerText, H_HEADER_TABEL)}
       </div>
 
+      {/* Baris data */}
       {rows.map((r, i) => {
         const tanda = tandaBaris(i, rows.length, r.total)
         const bg = tanda === 'top' ? WARNA.top3 : tanda === 'bottom' ? WARNA.bottom3 : WARNA.baris
         return (
           <div key={r.id} style={{ display: 'flex', backgroundColor: bg, borderBottom: `1px solid ${WARNA.garis}` }}>
             {sel(String(r.rank), W_NO, 'center', false, WARNA.teksMuted)}
-            {sel(r.name, W_ENTITAS, 'left', false, WARNA.teks)}
+            {sel(r.name, wEntitas, 'left', false, WARNA.teks)}
             {columns.map((c) => (
               <div key={c.key} style={{ display: 'flex' }}>
                 {sel(fmt(r.counts[c.key]), wKol, 'center', false, WARNA.teksMuted)}
               </div>
             ))}
-            {sel(fmt(r.total), W_TOTAL, 'center', true, WARNA.teks)}
+            {pakaiTotal && sel(fmt(r.total), wTotal, 'center', true, WARNA.teks)}
           </div>
         )
       })}
 
+      {/* Footer total */}
       <div style={{ display: 'flex', backgroundColor: WARNA.footerBg }}>
         {sel('', W_NO)}
-        {sel('TOTAL', W_ENTITAS, 'left', true)}
+        {sel('TOTAL', wEntitas, 'left', true)}
         {columns.map((c) => (
           <div key={c.key} style={{ display: 'flex' }}>
             {sel(fmt(totalPerColumn[c.key]), wKol, 'center', true)}
           </div>
         ))}
-        {sel(fmt(totalSemua), W_TOTAL, 'center', true)}
+        {pakaiTotal && sel(fmt(totalSemua), wTotal, 'center', true)}
       </div>
     </div>
   )

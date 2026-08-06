@@ -4,6 +4,7 @@ const fmt = (n) => new Intl.NumberFormat('id-ID').format(n)
 
 export default function TabelRekap({ data, judulCetak, labelJudul, kolomEntitas = 'POLSEK' }) {
   const { columns, rows, totalPerColumn, totalSemua, adaData } = data
+  const pakaiTotal = columns.length > 1
 
   if (!adaData) {
     return (
@@ -38,12 +39,9 @@ export default function TabelRekap({ data, judulCetak, labelJudul, kolomEntitas 
               {columns.map((c) => (
                 <th key={c.key} title={c.subLabel || ''} className="px-3 py-3 text-center font-semibold">
                   <span className="block">{c.label}</span>
-                  {c.subLabel && c.subLabel !== c.label && (
-                    <span className="block text-[10px] font-normal opacity-80">{c.subLabel}</span>
-                  )}
                 </th>
               ))}
-              <th className="px-5 py-3 text-center font-semibold">TOTAL</th>
+              {pakaiTotal && <th className="px-5 py-3 text-center font-semibold">TOTAL</th>}
             </tr>
           </thead>
           <tbody>
@@ -68,9 +66,11 @@ export default function TabelRekap({ data, judulCetak, labelJudul, kolomEntitas 
                       {fmt(r.counts[c.key])}
                     </td>
                   ))}
-                  <td className="px-5 py-3 text-center font-semibold text-gray-800 dark:text-white">
-                    {fmt(r.total)}
-                  </td>
+                  {pakaiTotal && (
+                    <td className="px-5 py-3 text-center font-semibold text-gray-800 dark:text-white">
+                      {fmt(r.total)}
+                    </td>
+                  )}
                 </tr>
               )
             })}
@@ -86,7 +86,9 @@ export default function TabelRekap({ data, judulCetak, labelJudul, kolomEntitas 
                   {fmt(totalPerColumn[c.key])}
                 </td>
               ))}
-              <td className="px-5 py-3 text-center text-gray-800 dark:text-white">{fmt(totalSemua)}</td>
+              {pakaiTotal && (
+                <td className="px-5 py-3 text-center text-gray-800 dark:text-white">{fmt(totalSemua)}</td>
+              )}
             </tr>
           </tfoot>
         </table>

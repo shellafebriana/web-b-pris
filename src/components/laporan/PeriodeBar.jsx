@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { MODE_LIST } from '@/lib/laporan/periode'
+import PeriodeInput from './PeriodeInput'
 
 /**
  * Server Component. <form method="GET"> + <Link> biasa, TANPA state client —
@@ -37,15 +38,7 @@ export default function PeriodeBar({ periode }) {
           >
             {mode === 'harian' ? 'Tanggal' : mode === 'tahunan' ? 'Tahun' : 'Bulan'}
           </label>
-          <input
-            id="periode"
-            name="periode"
-            defaultValue={nilai}
-            type={mode === 'harian' ? 'date' : mode === 'bulanan' ? 'month' : 'number'}
-            min={mode === 'tahunan' ? 2020 : undefined}
-            max={mode === 'tahunan' ? tahunIni + 1 : undefined}
-            className="w-full rounded-lg border border-gray-200 bg-transparent px-4 py-2.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-800 dark:text-white"
-          />
+          <PeriodeInput mode={mode} nilai={nilai} tahunIni={tahunIni} />
         </div>
 
         <button

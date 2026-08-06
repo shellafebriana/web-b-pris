@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma'
-import { buildBuckets, bucketKey } from '@/lib/laporan/periode'
+import { buildBuckets, bucketKey, komponenWib } from '@/lib/laporan/periode'
 
 export const FORMAT_MEDIA_SOSIAL = 'format1'
 export const FORMAT_MEDIA_ONLINE = 'format16'
@@ -70,12 +70,18 @@ function rakitMatriks({ units, columns, counts }) {
   return { columns, rows, totalPerColumn, totalSemua, adaData: totalSemua > 0 }
 }
 
-function ambilUnits(unitType) {
-  return prisma.unit.findMany({
+async function ambilUnits(unitType, { hanyaPunyaDomain = false } = {}) {
+  const rows = await prisma.unit.findMany({
     where: { type: unitType },
-    select: { id: true, name: true },
+    select: { id: true, name: true, ...(hanyaPunyaDomain ? { domains: true } : {}) },
     orderBy: { name: 'asc' },
   })
+  if (!hanyaPunyaDomain) return rows
+  // Disaring di JS, bukan di query: `domains` itu kolom Json, dan filter
+  // `not: DbNull` di Prisma gak nangkep kasus array kosong `[]` yang secara
+  // teknis bukan NULL tapi sama aja gak punya domain. Unit itu master data
+  // (26 baris), jadi biayanya nol.
+  return rows.filter((u) => Array.isArray(u.domains) && u.domains.length > 0)
 }
 
 /** MEDIA SOSIAL — kolom = platform sosmed. */
@@ -111,7 +117,7 @@ export async function getRekapMediaSosial({ formatIds, periode, unitType = 'POLS
  * Link gak punya tanggal sendiri, jadi bucket diturunkan dari tanggal efektif SESI.
  * Dua query: ambil sesi dulu (maping sesi->bucket), baru groupBy link.
  */
-export async function getRekapMediaOnline({ formatIds, periode, unitType = 'POLSEK' }) {
+export async function getRekapMediaOnline({ formatIds, periode, unitType = 'POLSEK', hanyaPunyaDomain = true }) {
   const columns = buildBuckets(periode)
   if (!formatIds?.length) return HASIL_KOSONG(columns)
 
@@ -126,7 +132,7 @@ export async function getRekapMediaOnline({ formatIds, periode, unitType = 'POLS
   )
 
   const [units, grouped] = await Promise.all([
-    ambilUnits(unitType),
+    ambilUnits(unitType, { hanyaPunyaDomain }),
     prisma.link.groupBy({
       by: ['unitId', 'sessionId'],
       where: { unitId: { not: null }, sessionId: { in: [...bucketSesi.keys()] } },
@@ -145,4 +151,43 @@ export async function getRekapMediaOnline({ formatIds, periode, unitType = 'POLS
   }
 
   return rakitMatriks({ units, columns, counts })
+}
+
+/**
+ * Kelengkapan data per tanggal — cuma relevan di mode bulanan.
+ * Tanpa ini, hari yang gak pernah diinput kebaca sama persis dengan hari yang
+ * beneran nihil kiriman, dan laporannya jadi menuduh polsek yang salah.
+ */
+export async function getKelengkapanHarian({ formatIds, periode }) {
+  if (periode.mode !== 'bulanan' || !formatIds?.length) return null
+
+  const sesi = await prisma.rekapSession.findMany({
+    where: filterPeriodeSesi({ formatIds, start: periode.start, end: periode.end }),
+    select: { contentDate: true, createdAt: true, totalLinks: true },
+  })
+
+  const perTanggal = {}
+  for (const s of sesi) {
+    const { d } = komponenWib(s.contentDate ?? s.createdAt)
+    if (!perTanggal[d]) perTanggal[d] = { sesi: 0, link: 0 }
+    perTanggal[d].sesi++
+    perTanggal[d].link += s.totalLinks || 0
+  }
+
+  const [y, m] = periode.periode.split('-').map(Number)
+  const hariAkhir = new Date(Date.UTC(y, m, 0)).getUTCDate()
+  const offset = (new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 6) % 7 // 0 = Senin
+
+  // Bulan berjalan: hari yang belum tiba jangan dihitung sebagai bolong.
+  const now = komponenWib(new Date())
+  const hariEfektif = y === now.y && m === now.m ? Math.min(now.d, hariAkhir) : hariAkhir
+
+  let hariAda = 0
+  for (let d = 1; d <= hariEfektif; d++) if (perTanggal[d]) hariAda++
+
+  return {
+    y, m, hariAkhir, offset, hariEfektif, perTanggal,
+    hariAda,
+    hariKosong: hariEfektif - hariAda,
+  }
 }

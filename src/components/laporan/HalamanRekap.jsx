@@ -1,10 +1,11 @@
 import { Suspense } from 'react'
 import { parsePeriode } from '@/lib/laporan/periode'
 import { JENIS_LAPORAN } from '@/lib/laporan/registry'
-import { getFormatLaporan } from '@/lib/models/laporan'
+import { getFormatLaporan, getKelengkapanHarian } from '@/lib/models/laporan'
 import PeriodeBar from './PeriodeBar'
 import ExportButtons from './ExportButtons'
 import TabelRekap from './TabelRekap'
+import PanelKelengkapan from './PanelKelengkapan'
 
 function SkeletonTabel() {
   return (
@@ -20,14 +21,23 @@ function SkeletonTabel() {
 }
 
 async function IsiLaporan({ cfg, periode }) {
-  const data = await cfg.ambil({ formatIds: [cfg.formatId], periode })
+  const [data, kelengkapan] = await Promise.all([
+    cfg.ambil({ formatIds: [cfg.formatId], periode }),
+    cfg.punyaKelengkapan
+      ? getKelengkapanHarian({ formatIds: [cfg.formatId], periode })
+      : Promise.resolve(null),
+  ])
+
   return (
-    <TabelRekap
-      data={data}
-      judulCetak={cfg.judulCetak}
-      labelJudul={periode.labelJudul}
-      kolomEntitas={cfg.kolomEntitas}
-    />
+    <div className="space-y-5">
+      <PanelKelengkapan data={kelengkapan} labelPeriode={periode.label} />
+      <TabelRekap
+        data={data}
+        judulCetak={cfg.judulCetak}
+        labelJudul={periode.labelJudul}
+        kolomEntitas={cfg.kolomEntitas}
+      />
+    </div>
   )
 }
 

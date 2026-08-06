@@ -6,13 +6,13 @@ export async function buildRekapXlsx({ data, judulCetak, labelJudul, kolomEntita
   const wb = new ExcelJS.Workbook()
   wb.creator = 'SIHUMAS Polresta Banyuwangi'
   wb.created = new Date()
+  const pakaiTotal = columns.length > 1
+  const kolomTerakhir = 2 + columns.length + (pakaiTotal ? 1 : 0)
 
   const ws = wb.addWorksheet('Rekap', {
     views: [{ state: 'frozen', ySplit: 5, xSplit: 2 }],
     pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   })
-
-  const kolomTerakhir = 2 + columns.length + 1
 
   const judul = [JUDUL_1, judulCetak, labelJudul]
   judul.forEach((teks, i) => {
@@ -26,11 +26,10 @@ export async function buildRekapXlsx({ data, judulCetak, labelJudul, kolomEntita
   ws.getRow(4).height = 6
 
   const headerRow = ws.getRow(5)
-  headerRow.values = [
-    'NO',
-    kolomEntitas,
-    ...columns.map((c) => (c.subLabel && c.subLabel !== c.label ? `${c.label}\n(${c.subLabel})` : c.label)),
-    'TOTAL',
+   headerRow.values = [
+    'NO', kolomEntitas,
+    ...columns.map((c) => (c.label)),
+    ...(pakaiTotal ? ['TOTAL'] : []),
   ]
   headerRow.eachCell((cell) => {
     cell.font = { bold: true, color: { argb: argb(WARNA.headerText) } }
@@ -40,7 +39,7 @@ export async function buildRekapXlsx({ data, judulCetak, labelJudul, kolomEntita
   headerRow.height = 30
 
   rows.forEach((r, i) => {
-    const row = ws.addRow([r.rank, r.name, ...columns.map((c) => r.counts[c.key]), r.total])
+     const row = ws.addRow([r.rank, r.name, ...columns.map((c) => r.counts[c.key]), ...(pakaiTotal ? [r.total] : [])])
     const tanda = tandaBaris(i, rows.length, r.total)
     const bg = tanda === 'top' ? WARNA.top3 : tanda === 'bottom' ? WARNA.bottom3 : null
     row.eachCell((cell, col) => {
@@ -51,12 +50,7 @@ export async function buildRekapXlsx({ data, judulCetak, labelJudul, kolomEntita
     })
   })
 
-  const footer = ws.addRow([
-    '',
-    'TOTAL',
-    ...columns.map((c) => totalPerColumn[c.key]),
-    totalSemua,
-  ])
+  const footer = ws.addRow(['', 'TOTAL', ...columns.map((c) => totalPerColumn[c.key]), ...(pakaiTotal ? [totalSemua] : [])])
   footer.eachCell((cell, col) => {
     cell.font = { bold: true }
     cell.alignment = { horizontal: col === 2 ? 'left' : 'center' }

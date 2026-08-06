@@ -21,5 +21,6 @@ export const JENIS_LAPORAN = {
     formatId: FORMAT_MEDIA_ONLINE,
     namaFile: 'rekap-media-online',
     ambil: getRekapMediaOnline,
+    punyaKelengkapan: true,
   },
 }
