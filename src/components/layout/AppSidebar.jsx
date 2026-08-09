@@ -33,7 +33,7 @@ const navItems = [
     subItems: [
       { name: "Media Sosial", path: "/laporan/media-sosial" },
       { name: "Media Online", path: "/laporan/media-online" },
-      // { name: "Konten Rayon", path: "/laporan/konten-rayon" },
+      { name: "Konten Rayon", path: "/laporan/konten-rayon" },
       // { name: "Interaksi Anggota", path: "/laporan/interaksi-anggota" },
       // { name: "Viralisasi Spripim", path: "/laporan/viralisasi-spripim" },
     ],

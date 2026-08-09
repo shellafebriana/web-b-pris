@@ -22,7 +22,7 @@ function SkeletonTabel() {
 
 async function IsiLaporan({ cfg, periode }) {
   const [data, kelengkapan] = await Promise.all([
-    cfg.ambil({ formatIds: [cfg.formatId], periode }),
+    cfg.ambil({ formatIds: cfg.formatId ? [cfg.formatId] : [], periode }),
     cfg.punyaKelengkapan
       ? getKelengkapanHarian({ formatIds: [cfg.formatId], periode })
       : Promise.resolve(null),
@@ -45,8 +45,8 @@ export default async function HalamanRekap({ jenis, searchParams }) {
   const cfg = JENIS_LAPORAN[jenis]
   const params = await searchParams
   const periode = parsePeriode(params)
-  const format = await getFormatLaporan(cfg.formatId)
-  const siap = Boolean(format?.isActive)
+  const format = cfg.formatId ? await getFormatLaporan(cfg.formatId) : null
+  const siap = cfg.formatId ? Boolean(format?.isActive) : true
 
   return (
     <div>
@@ -54,7 +54,7 @@ export default async function HalamanRekap({ jenis, searchParams }) {
         <h1 className="text-title-sm font-bold text-gray-800 dark:text-white">{cfg.judul}</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           Rekap per polsek — {periode.label}
-          {siap ? ` · ${format.name}` : ''}
+          {format?.name ? ` · ${format.name}` : ''}
         </p>
       </div>
 

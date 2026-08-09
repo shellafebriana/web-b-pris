@@ -42,7 +42,7 @@ const HASIL_KOSONG = (columns) => ({
 })
 
 /** Rakit matriks unit x kolom. `counts` = Map(unitId -> { colKey: jumlah }) */
-function rakitMatriks({ units, columns, counts }) {
+export function rakitMatriks({ units, columns, counts }) {
   const totalPerColumn = {}
   for (const c of columns) totalPerColumn[c.key] = 0
   let totalSemua = 0

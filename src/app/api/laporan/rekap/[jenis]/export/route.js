@@ -28,17 +28,19 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Tipe export tidak valid' }, { status: 400 })
   }
 
-  const format = await getFormatLaporan(cfg.formatId)
-  if (!format || !format.isActive) {
-    return NextResponse.json(
-      { error: `Format sumber (${cfg.formatId}) tidak tersedia` },
-      { status: 400 }
-    )
+  if (cfg.formatId) {
+    const format = await getFormatLaporan(cfg.formatId)
+    if (!format || !format.isActive) {
+      return NextResponse.json(
+        { error: `Format sumber (${cfg.formatId}) tidak tersedia` },
+        { status: 400 }
+      )
+    }
   }
 
   // parsePeriode() memvalidasi ketat; input ngawur jatuh ke periode sekarang.
   const periode = parsePeriode({ mode: sp.get('mode'), periode: sp.get('periode') })
-  const data = await cfg.ambil({ formatIds: [cfg.formatId], periode })
+  const data = await cfg.ambil({ formatIds: cfg.formatId ? [cfg.formatId] : [], periode })
 
   if (!data.adaData) {
     return NextResponse.json({ error: 'Tidak ada data untuk periode ini' }, { status: 404 })

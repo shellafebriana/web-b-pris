@@ -80,6 +80,8 @@ model Unit {
   type  String
   links Link[]
   domains Json?
+  aliases Json?
+  rilisSubmissions RilisSubmission[]
 }
 
 model Link {
@@ -127,4 +129,33 @@ model CustomDocument {
   content   Json
   createdAt DateTime @default(now())
   updatedAt DateTime
+}
+
+model RilisSubmission {
+  id          BigInt   @id @default(autoincrement())
+  unitId      BigInt
+  unit        Unit     @relation(fields: [unitId], references: [id])
+  contentDate DateTime          // tengah malam WIB, granularitas hari
+  rayon       Int?
+  metode String? @db.VarChar(10)  // header | judul | pengirim | manual
+  pengirim    String?  @db.VarChar(255)
+  fingerprint String   @unique @db.VarChar(64)   // sha256 hex
+  createdAt   DateTime @default(now())
+
+  @@index([unitId, contentDate])
+  @@index([contentDate])
+}
+
+model AnggotaInteraksiStatus {
+  id         BigInt   @id @default(autoincrement())
+  unitId     BigInt
+  unit       Unit     @relation(fields: [unitId], references: [id])
+  periode    String   @db.VarChar(7)    // "2026-08"
+  sudah      Boolean  @default(false)
+  linkDrive  String?  @db.Text
+  keterangan String?  @db.VarChar(255)
+  updatedAt  DateTime @updatedAt
+
+  @@unique([unitId, periode])
+  @@index([periode])
 }
