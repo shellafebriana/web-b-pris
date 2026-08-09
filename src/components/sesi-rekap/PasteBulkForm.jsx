@@ -140,7 +140,8 @@ export default function PasteBulkForm({
   const missingPlatformCount = parsedItems.filter((i) => !i.platformId).length
   const conflictCount = parsedItems.filter((i) => i._conflictName).length
   const duplicateCount = parsedItems.filter((i) => i._isDuplicate).length
-  const canSubmit = parsedItems.length > 0 && missingPlatformCount === 0 && !isPending
+  const validItems = parsedItems.filter((i) => i.platformId)
+  const canSubmit = validItems.length > 0 && !isPending
 
   if (allowedPlatforms.length === 0) {
     return (
@@ -157,7 +158,7 @@ export default function PasteBulkForm({
       <input
         type="hidden"
         name="items"
-        value={JSON.stringify(parsedItems.map(({ _platformName, _unitName, _conflictName, _isDuplicate, ...item }) => item))}
+        value={JSON.stringify(validItems.map(({ _platformName, _unitName, _conflictName, _isDuplicate, ...item }) => item))}
       />
 
       <div className="flex flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
@@ -284,7 +285,11 @@ export default function PasteBulkForm({
           disabled={!canSubmit}
           className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
         >
-          {isPending ? 'Menyimpan...' : `Tambahkan ${parsedItems.length > 0 ? `(${parsedItems.length} link)` : ''}`}
+          {isPending
+            ? 'Menyimpan...'
+            : validItems.length > 0
+              ? `Tambahkan (${validItems.length} link${missingPlatformCount > 0 ? `, ${missingPlatformCount} dilewati` : ''})`
+              : 'Tambahkan'}
         </button>
         <button
           type="button"
