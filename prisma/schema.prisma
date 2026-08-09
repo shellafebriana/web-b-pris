@@ -82,6 +82,7 @@ model Unit {
   domains Json?
   aliases Json?
   rilisSubmissions RilisSubmission[]
+  interaksiStatuses AnggotaInteraksiStatus[]
 }
 
 model Link {
@@ -151,7 +152,7 @@ model AnggotaInteraksiStatus {
   unitId     BigInt
   unit       Unit     @relation(fields: [unitId], references: [id])
   periode    String   @db.VarChar(7)    // "2026-08"
-  sudah      Boolean  @default(false)
+  status     String   @db.VarChar(10)   // BELUM | SUDAH | TERLAMBAT
   linkDrive  String?  @db.Text
   keterangan String?  @db.VarChar(255)
   updatedAt  DateTime @updatedAt
