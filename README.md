@@ -142,14 +142,6 @@ Deploy otomatis ke Vercel melalui GitHub Actions setiap push ke `master`. Secret
 | `VERCEL_ORG_ID` | ID organisasi Vercel |
 | `VERCEL_PROJECT_ID` | ID project Vercel |
 
-## Catatan Pengembangan
-
-**Jalankan `npm run build` sebelum push.** `next dev` hanya meng-compile halaman yang dibuka, sementara build meng-compile semuanya. Kesalahan import yang tidak pernah terlihat saat development bisa menggagalkan build di CI.
-
-**Konsisten pada pola import Prisma client.** Gunakan pola export yang sama di seluruh route handler, karena ketidakcocokan antara default dan named import hanya terdeteksi saat build.
-
-**ID bertipe BigInt.** Beberapa model memakai `BigInt` untuk primary key, sehingga perlu konversi eksplisit saat menerima ID dari request dan saat menserialisasi respons JSON.
-
 ## Status
 
-Dikembangkan dan digunakan untuk kebutuhan internal Humas Polresta Banyuwangi. Data operasional seperti nama pejabat, daftar unit, dan isi format laporan disimpan di database dan dikelola lewat antarmuka web, bukan di-hardcode.
+Dikembangkan dan digunakan untuk kebutuhan internal Humas Polresta Banyuwangi. Masih tahap development.
