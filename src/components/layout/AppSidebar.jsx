@@ -35,7 +35,7 @@ const navItems = [
       { name: "Media Online", path: "/laporan/media-online" },
       { name: "Konten Rayon", path: "/laporan/konten-rayon" },
       { name: "Interaksi Anggota", path: "/laporan/interaksi-anggota" },
-      // { name: "Viralisasi Spripim", path: "/laporan/viralisasi-spripim" },
+      { name: "Viralisasi Spripim", path: "/laporan/viralisasi-spripim" },
     ],
   },
 ];

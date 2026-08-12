@@ -1,22 +1,19 @@
 import { redirect } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth'
-import { getAllRekapSessions } from '@/lib/models/rekapSession'
+import { getSesiViralisasi } from '@/lib/models/laporan'
 import ViralisasiSpripimList from '@/components/laporan/ViralisasiSpripimList'
-
-const FORMAT_ID = 'format4' // Manajemen Media Sosial (Kapolresta)
 
 export default async function ViralisasiSpripimPage({ searchParams }) {
   const user = await getAuthUser()
   if (!user || user.role !== 'admin') redirect('/login')
 
   const params = await searchParams
-  const page = Number(params.page) || 1
-  const search = params.search || ''
+  const halaman = Number.parseInt(params?.page, 10)
+  const tanggal = typeof params?.tanggal === 'string' ? params.tanggal : ''
 
-  const { data: sessions, pagination } = await getAllRekapSessions({
-    search,
-    formatId: FORMAT_ID,
-    page,
+  const { data, pagination, periode } = await getSesiViralisasi({
+    tanggal,
+    page: Number.isFinite(halaman) && halaman > 0 ? halaman : 1,
     limit: 10,
   })
 
@@ -25,11 +22,12 @@ export default async function ViralisasiSpripimPage({ searchParams }) {
       <div className="mb-6">
         <h1 className="text-title-sm font-bold text-gray-800 dark:text-white">Laporan Viralisasi Spripim</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Generate PPTX dari Sesi Rekap format "Manajemen Media Sosial (Kapolresta)" — {pagination.total} sesi tersedia
+          Pilih sesi Manajemen Media Sosial Kapolda, lalu salin link per platform ke PowerPoint —
+          {' '}{pagination.total} sesi{periode ? ` pada ${periode.label}` : ''}
         </p>
       </div>
 
-      <ViralisasiSpripimList sessions={sessions} pagination={pagination} />
+      <ViralisasiSpripimList sessions={data} pagination={pagination} />
     </div>
   )
 }
