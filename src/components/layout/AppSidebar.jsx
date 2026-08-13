@@ -38,6 +38,7 @@ const navItems = [
       { name: "Viralisasi Spripim", path: "/laporan/viralisasi-spripim" },
     ],
   },
+  { icon: <PieChartIcon />, name: "Monitoring", path: "/monitoring" },
 ];
 
 
