@@ -32,19 +32,40 @@ const MonitoringSesiList = ({ daftar, ringkas, bulan, daftarBulan }) => {
             nilai: formatNumber(ringkas.totalReview),
             kelas: ringkas.totalReview > 0 ? 'text-warning-600 dark:text-warning-500' : undefined,
           },
-        ].map((k) => (
-          <div
-            key={k.label}
-            className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3 md:p-5"
-          >
-            <span className="text-sm text-gray-500 dark:text-gray-400">{k.label}</span>
-            <h4 className={`mt-2 font-bold text-title-sm ${k.kelas ?? 'text-gray-800 dark:text-white'}`}>
-              {k.nilai}
-            </h4>
-          </div>
-        ))}
-      </div>
+        ].map((k) => {
+          const isi = (
+            <>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{k.label}</span>
+              <h4 className={`mt-2 font-bold text-title-sm ${k.kelas ?? 'text-gray-800 dark:text-white'}`}>
+                {k.nilai}
+              </h4>
+            </>
+          )
+          const kelasKartu =
+            'rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3 md:p-5'
 
+          if (k.label === 'Perlu review' && ringkas.totalReview > 0) {
+            return (
+              <Link
+                key={k.label}
+                href={`/monitoring/review?bulan=${bulan}`}
+                className={`${kelasKartu} block transition hover:border-warning-400 hover:shadow-sm`}
+              >
+                {isi}
+                <span className="mt-1 block text-xs text-warning-600 dark:text-warning-500">
+                  Klik untuk memperbaiki
+                </span>
+              </Link>
+            )
+          }
+          return (
+            <div key={k.label} className={kelasKartu}>
+              {isi}
+            </div>
+          )
+        })}
+      </div>
+      
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {daftarBulan.slice(0, 12).map((b) => (
           <Link

@@ -8,6 +8,7 @@ import {
   hapusItemAction,
   ubahStateAction,
 } from '@/app/(admin)/monitoring/actions'
+import Link from 'next/link'
 
 const KANAL = [
   { kode: 'ONLINE', label: 'Media Online' },
@@ -107,8 +108,14 @@ export default function SesiDetailPanel({ sesi }) {
             {perluReview} perlu review
           </button>
         ) : null}
-
+        
         <div className="ml-auto flex gap-2">
+          <Link
+            href={`/monitoring/${sesi.id}/laporan`}
+            className="rounded-lg border border-brand-500 px-4 py-2 text-sm font-medium text-brand-600 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-500/10"
+          >
+            Lihat laporan
+          </Link>
           {!final ? (
             <button
               type="button"
@@ -236,35 +243,25 @@ function ModalTambah({ sesi, onTutup, onSukses, onGagal }) {
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 dark:bg-gray-900">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Tambah item</h3>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Kanal ditentukan otomatis dari alamat link.
+          Kanal ditentukan otomatis dari alamat link. Bisa banyak baris sekaligus."
         </p>
 
         <form action={formAction} className="mt-4 space-y-3">
           <div>
-            <label htmlFor="judul" className="mb-1.5 block text-sm text-gray-700 dark:text-gray-300">
-              Judul / caption
+            <label htmlFor="tempelan" className="mb-1.5 block text-sm text-gray-700 dark:text-gray-300">
+              Tempel judul dan link
             </label>
             <textarea
-              id="judul"
-              name="judul"
-              rows={3}
+              id="tempelan"
+              name="tempelan"
+              rows={7}
               required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+              placeholder={"Upacara HUT RI di Banyuwangi Dipadati Warga  https://beritajatim.com/...\n\nBisa banyak sekaligus, satu berita per baris."}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-white"
             />
-          </div>
-
-          <div>
-            <label htmlFor="url" className="mb-1.5 block text-sm text-gray-700 dark:text-gray-300">
-              Link
-            </label>
-            <input
-              id="url"
-              name="url"
-              type="url"
-              required
-              placeholder="https://..."
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-            />
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+              Judul dan link dipisah otomatis. Bisa tempel banyak baris sekaligus.
+            </p>
           </div>
 
           <div>

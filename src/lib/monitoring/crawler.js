@@ -3,15 +3,38 @@
 
 const UA = 'SIHUMAS-Monitor/1.0 (+Humas Polresta Banyuwangi)'
 const BATAS_ITEM = 100
+// RSS media TIDAK punya filter kata kunci — feed memberi SEMUA artikel yang
+// mereka terbitkan, termasuk berita Sidoarjo/Surabaya. Google News menyaring
+// lewat query, RSS harus disaring di sini.
+export const KEYWORD_BAWAAN = [
+  'banyuwangi', 'blambangan', 'muncar', 'rogojampi', 'glenmore', 'wongsorejo',
+  'kalipuro', 'tegaldlimo', 'singojuruh', 'srono', 'gambiran', 'bangorejo',
+  'purwoharjo', 'pesanggaran', 'siliragung', 'cluring', 'tegalsari', 'kalibaru',
+  'songgon', 'sempu', 'licin', 'glagah', 'kabat', 'ketapang', 'gandrung',
+  'osing', 'using', 'ijen',
+]
+
+const normRelevansi = (s) =>
+  ` ${String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ').trim()} `
+
+// Cocokkan per kata utuh, bukan substring — 'licin' jangan kena 'lici'/'licinnya'
+// dan 'giri' sengaja TIDAK dimasukkan karena terlalu umum.
+export function relevanBanyuwangi(judul, url, keyword = KEYWORD_BAWAAN) {
+  const teks = normRelevansi(`${judul} ${url ?? ''}`)
+  return keyword.some((k) => teks.includes(` ${normRelevansi(k).trim()} `))
+}
 
 function ambilTag(blok, tag) {
   const m = blok.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'))
   if (!m) return null
   return m[1]
-    .replace(/^<!\[CDATA\[/, '')
-    .replace(/\]\]>$/, '')
+    .trim()                                   // trim DULU — sebagian feed menaruh
+    .replace(/<!\[CDATA\[/g, '')              // CDATA setelah baris baru, jadi
+    .replace(/\]\]>/g, '')                    // jangkar ^ meleset
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .replace(/<[^>]+>/g, ' ')                 // sisa tag HTML di judul
     .replace(/[\u200B-\u200F\uFEFF]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -70,59 +93,68 @@ async function ambilTeks(url, timeoutMs = 12000) {
   }
 }
 
-// Aset/CDN — bukan artikel. Kalau resolusi mendarat di sini, itu salah.
-const HOST_TERLARANG = [
-  'googleusercontent.com', 'gstatic.com', 'ggpht.com',
-  'google.com', 'news.google.com', 'accounts.google.com', 'policies.google.com',
-]
+const HOST_TERLARANG = ['google.com', 'googleusercontent.com', 'gstatic.com', 'ggpht.com']
 
 function hostTerlarang(h) {
   return HOST_TERLARANG.some((d) => h === d || h.endsWith(`.${d}`))
 }
 
+const UA_BROWSER =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+
 // Link Google News adalah pengalihan yang dijalankan lewat JavaScript, jadi
-// tidak selalu bisa diselesaikan dari server. Kalau tidak bisa dipastikan,
-// kandidatnya DIBUANG — lebih baik kehilangan satu berita daripada menyimpan
-// URL gambar/aset yang salah.
+// mengikuti redirect biasa TIDAK berhasil (terbukti 0/5 saat diuji).
+// Yang berhasil (5/5) adalah endpoint internal batchexecute: buka halaman
+// artikel untuk ambil token ts+sg, lalu tukarkan token itu jadi URL asli.
+//
+// Ini endpoint tidak resmi dan bisa berubah sewaktu-waktu. Kalau nanti selalu
+// gagal, cek dulu dengan scripts/uji-gnews.mjs sebelum menuduh crawler rusak.
 export async function resolveUrl(url, urlCadangan, sourcePenerbit) {
-  const hostAsal = safeHost(url)
-  if (!/(^|\.)news\.google\.com$/i.test(hostAsal)) return url
+  if (!/(^|\.)news\.google\.com$/i.test(safeHost(url))) return url
 
-  const hostPenerbit = sourcePenerbit ? safeHost(sourcePenerbit) : null
-
-  const cocok = (kandidat) => {
+  const penerbit = sourcePenerbit ? safeHost(sourcePenerbit) : null
+  const sah = (kandidat) => {
     if (!kandidat) return null
     const h = safeHost(kandidat)
-    if (!h || hostTerlarang(h)) return null
-    // Kalau penerbitnya diketahui, hasil resolusi WAJIB dari domain itu.
-    if (hostPenerbit && h !== hostPenerbit && !h.endsWith(`.${hostPenerbit}`)) return null
+    if (!h || hostTerlarang(h) || /news\.google\.com/i.test(h)) return null
+    if (penerbit && h !== penerbit && !h.endsWith(`.${penerbit}`)) return null
     return kandidat
   }
 
-  const dariCadangan = cocok(urlCadangan)
-  if (dariCadangan) return dariCadangan
+  const dariDeskripsi = sah(urlCadangan)
+  if (dariDeskripsi) return dariDeskripsi
+
+  const id = url.match(/\/(?:rss\/)?articles\/([^?/]+)/)?.[1]
+  if (!id) return null
 
   const c = new AbortController()
-  const t = setTimeout(() => c.abort(), 10000)
+  const t = setTimeout(() => c.abort(), 15000)
   try {
-    const r = await fetch(url, {
+    const hal = await fetch(url, { signal: c.signal, headers: { 'user-agent': UA_BROWSER } })
+    const html = await hal.text()
+    const ts = html.match(/data-n-a-ts="([^"]+)"/)?.[1]
+    const sg = html.match(/data-n-a-sg="([^"]+)"/)?.[1]
+    if (!ts || !sg) return null
+
+    const payload = JSON.stringify([[['Fbv4je',
+      JSON.stringify(['garturlreq',
+        [['X','X',['X','X'],null,null,1,1,'US:en',null,1,null,null,null,null,null,0,1],
+         'X','X',1,[1,1,1],1,1,null,0,0,null,0],
+        id, Number(ts), sg]),
+      null, 'generic']]])
+
+    const r = await fetch('https://news.google.com/_/DotsSplashUi/data/batchexecute', {
+      method: 'POST',
       signal: c.signal,
-      redirect: 'follow',
       headers: {
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
-        'accept-language': 'id-ID,id;q=0.9',
+        'user-agent': UA_BROWSER,
+        'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
       },
+      body: `f.req=${encodeURIComponent(payload)}`,
     })
-
-    const dariRedirect = cocok(r.url)
-    if (dariRedirect) return dariRedirect
-
-    const html = await r.text()
-    for (const m of html.matchAll(/https?:\/\/[^\s"'<>\\]+/g)) {
-      const hasil = cocok(m[0])
-      if (hasil) return hasil
-    }
-    return null
+    const teks = await r.text()
+    const m = teks.match(/https?:\/\/(?!news\.google|www\.google)[^\s"'\\]{15,}/)
+    return sah(m?.[0] ?? null)
   } catch {
     return null
   } finally {
@@ -145,7 +177,7 @@ export function bangunUrlGnews(query) {
   return `https://news.google.com/rss/search?q=${q}&hl=id&gl=ID&ceid=ID:id`
 }
 
-export async function tarikSatuSumber(sumber) {
+export async function tarikSatuSumber(sumber, keyword = KEYWORD_BAWAAN) {
   const alamat = sumber.jenis === 'GNEWS' ? bangunUrlGnews(sumber.alamat) : sumber.alamat
   const { teks, gagal } = await ambilTeks(alamat)
   if (gagal) return { kandidat: [], status: `gagal: ${gagal}` }
@@ -163,6 +195,8 @@ export async function tarikSatuSumber(sumber) {
     if (p.protocol !== 'http:' && p.protocol !== 'https:') continue
     const host = safeHost(url)
     if (!host || hostTerlarang(host)) continue
+    // Sumber Google News sudah tersaring lewat query, RSS belum.
+    if (sumber.wajibKeyword !== false && !relevanBanyuwangi(m.judul, m.urlFinal, keyword)) continue
     kandidat.push({
       judul: bersihkanJudul(m.judul, host).slice(0, 500),
       url: url.replace(/\/+$/, ''),

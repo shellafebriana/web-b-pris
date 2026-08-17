@@ -19,14 +19,11 @@ import {
   UserCircleIcon,
 } from "../../icons/index";
 
-const navItems = [
-  
-  { icon: <GridIcon />, name: "Dashboard", path: "/dashboard"},
-  { icon: <BoxCubeIcon />, name: "Platform", path: "/platform" },
-  { icon: <ListIcon />, name: "Unit", path: "/unit" },
-  { icon: <PageIcon />, name: "Format Rekap", path: "/format-rekap" },
-  { icon: <PlugInIcon />, name: "Link Prioritas", path: "/link-prioritas" },
+const navItems = []
+const navUtama = [
+  { icon: <GridIcon />, name: "Dashboard", path: "/dashboard" },
   { icon: <TableIcon />, name: "Sesi Rekap", path: "/sesi-rekap" },
+  { icon: <PieChartIcon />, name: "Monitoring", path: "/monitoring" },
   {
     icon: <DocsIcon />,
     name: "Laporan",
@@ -38,7 +35,13 @@ const navItems = [
       { name: "Viralisasi Spripim", path: "/laporan/viralisasi-spripim" },
     ],
   },
-  { icon: <PieChartIcon />, name: "Monitoring", path: "/monitoring" },
+];
+
+const navPengaturan = [
+  { icon: <BoxCubeIcon />, name: "Platform", path: "/platform" },
+  { icon: <ListIcon />, name: "Unit", path: "/unit" },
+  { icon: <PageIcon />, name: "Format Rekap", path: "/format-rekap" },
+  { icon: <PlugInIcon />, name: "Link Prioritas", path: "/link-prioritas" },
 ];
 
 
@@ -178,7 +181,7 @@ const AppSidebar = () => {
     // Check if the current path matches any submenu item
     let submenuMatched = false;
     ["main", "others"].forEach((menuType) => {
-      const items = menuType === "main" ? navItems : [];
+      const items = menuType === "main" ? navUtama : navPengaturan;
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
@@ -271,24 +274,36 @@ const AppSidebar = () => {
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
-          <div className="flex flex-col gap-4">
-            <div>
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-5 text-gray-400 ${
-                  !isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
-                }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems(navItems, "main")}
-            </div>
+          <div className="flex flex-col gap-8">
+              <div>
+                <h2
+                  className={`mb-4 text-xs uppercase flex leading-5 text-gray-400 ${
+                    !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+                  }`}
+                >
+                  {isExpanded || isHovered || isMobileOpen ? (
+                    "Operasional"
+                  ) : (
+                    <HorizontaLDots />
+                  )}
+                </h2>
+                {renderMenuItems(navUtama, "main")}
+              </div>
 
+              <div>
+                <h2
+                  className={`mb-4 text-xs uppercase flex leading-5 text-gray-400 ${
+                    !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+                  }`}
+                >
+                  {isExpanded || isHovered || isMobileOpen ? (
+                    "Pengaturan"
+                  ) : (
+                    <HorizontaLDots />
+                  )}
+                </h2>
+                {renderMenuItems(navPengaturan, "others")}
+              </div>
           </div>
         </nav>
       </div>

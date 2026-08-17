@@ -687,13 +687,19 @@ export async function tarikKandidat({ batasSumber = 25 } = {}) {
 
   let baru = 0
   let duplikat = 0
+  const kwRow = await prisma.appConfig.findUnique({
+    where: { key: 'monitoring.keyword_relevansi' },
+  })
+  const keyword = kwRow?.value
+    ? kwRow.value.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+    : undefined
 
   // Sumber diproses berurutan, bukan Promise.all — kalau 25 feed ditarik
   // sekaligus, koneksi pool ikut terbebani saat menulis hasilnya.
   for (const s of sumber) {
     let status = 'ok'
     try {
-      const { kandidat, status: st } = await tarikSatuSumber(s)
+      const { kandidat, status: st } = await tarikSatuSumber(s, keyword)
       status = st
       for (const k of kandidat) {
         const urlHash = hashUrl(k.url)
@@ -822,4 +828,79 @@ export async function tolakKandidat(daftarId) {
     where: { id: { in: daftarId.map((x) => BigInt(x)) } },
     data: { status: 'ditolak' },
   })
+}
+
+// ---------------------------------------------------------------------
+// Daftar item yang perlu direview (lintas sesi)
+// ---------------------------------------------------------------------
+export async function getItemPerluReview({ page = 1, limit = 30, bulan = null } = {}) {
+  const skip = (Math.max(1, page) - 1) * limit
+
+  let filterSesi = {}
+  if (bulan && /^\d{4}-\d{2}$/.test(bulan)) {
+    const [y, m] = bulan.split('-').map(Number)
+    const hari = new Date(Date.UTC(y, m, 0)).getUTCDate()
+    filterSesi = {
+      sesi: {
+        contentDate: {
+          gte: new Date(`${bulan}-01T00:00:00.000+07:00`),
+          lte: new Date(`${bulan}-${String(hari).padStart(2, '0')}T23:59:59.999+07:00`),
+        },
+      },
+    }
+  }
+
+  const where = { isReviewed: false, ...filterSesi }
+
+  const [rows, total, kategori] = await Promise.all([
+    prisma.monitoringItem.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: [{ sesiId: 'asc' }, { urutan: 'asc' }],
+      select: {
+        id: true, judul: true, url: true, kanal: true, sumber: true,
+        kategoriId: true, confidence: true, sumberInput: true,
+        sesi: { select: { id: true, contentDate: true, state: true } },
+      },
+    }),
+    prisma.monitoringItem.count({ where }),
+    prisma.monitoringKategori.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, kode: true, nama: true, sortOrder: true },
+    }),
+  ])
+
+  return {
+    data: rows.map((r) => ({
+      id: r.id.toString(),
+      judul: r.judul,
+      url: r.url,
+      kanal: r.kanal,
+      sumber: r.sumber,
+      kategoriId: r.kategoriId.toString(),
+      confidence: r.confidence,
+      sumberInput: r.sumberInput,
+      sesiId: r.sesi.id,
+      tanggal: tanggalWib(r.sesi.contentDate),
+      sesiFinal: r.sesi.state === 'final',
+    })),
+    kategori: kategori.map((k) => ({
+      id: k.id.toString(), kode: k.kode, nama: k.nama, sortOrder: k.sortOrder,
+    })),
+    pagination: { page, limit, total, totalPage: Math.ceil(total / limit) },
+  }
+}
+
+// Tandai benar tanpa mengubah kategorinya — untuk item yang saran sistemnya
+// ternyata sudah tepat.
+export async function tandaiSudahReview(daftarId) {
+  const ids = daftarId.map((x) => BigInt(x))
+  for (let i = 0; i < ids.length; i += 400) {
+    await prisma.monitoringItem.updateMany({
+      where: { id: { in: ids.slice(i, i + 400) } },
+      data: { isReviewed: true },
+    })
+  }
 }
