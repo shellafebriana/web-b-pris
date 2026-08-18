@@ -3,6 +3,26 @@
 
 const UA = 'SIHUMAS-Monitor/1.0 (+Humas Polresta Banyuwangi)'
 const BATAS_ITEM = 100
+
+const BATAS_GNEWS = 10          // tiap artikel butuh 2 fetch ke Google
+const PARALEL_RESOLVE = 8
+const TENGGAT_SUMBER_MS = 25000 // di bawah batas waktu serverless
+
+// Jalankan dengan batas paralel — bukan Promise.all penuh (bisa ratusan
+// koneksi sekaligus) dan bukan berurutan (terlalu lambat, kena 504).
+async function petaBerbatas(daftar, batas, fn) {
+  const hasil = new Array(daftar.length)
+  let i = 0
+  const pekerja = Array.from({ length: Math.min(batas, daftar.length) }, async () => {
+    while (i < daftar.length) {
+      const idx = i++
+      hasil[idx] = await fn(daftar[idx])
+    }
+  })
+  await Promise.all(pekerja)
+  return hasil
+}
+
 // RSS media TIDAK punya filter kata kunci — feed memberi SEMUA artikel yang
 // mereka terbitkan, termasuk berita Sidoarjo/Surabaya. Google News menyaring
 // lewat query, RSS harus disaring di sini.
@@ -24,6 +44,24 @@ export function relevanBanyuwangi(judul, url, keyword = KEYWORD_BAWAAN) {
   const teks = normRelevansi(`${judul} ${url ?? ''}`)
   return keyword.some((k) => teks.includes(` ${normRelevansi(k).trim()} `))
 }
+
+
+// Daerah lain yang sering muncul di feed jaringan media. Dipakai untuk sumber
+// yang wajibKeyword-nya mati: kalau menyebut daerah lain TANPA menyebut
+// Banyuwangi, hampir pasti bukan berita kita.
+const DAERAH_LAIN = [
+  'malang', 'blitar', 'surabaya', 'sidoarjo', 'jember', 'situbondo', 'bondowoso',
+  'probolinggo', 'lumajang', 'kediri', 'madiun', 'jombang', 'mojokerto', 'gresik',
+  'pasuruan', 'tuban', 'lamongan', 'bojonegoro', 'ngawi', 'magetan', 'ponorogo',
+  'trenggalek', 'tulungagung', 'nganjuk', 'bangkalan', 'sampang', 'pamekasan', 'sumenep',
+]
+
+export function daerahLain(judul, url) {
+  const teks = normRelevansi(`${judul} ${url ?? ''}`)
+  if (teks.includes(' banyuwangi ')) return false
+  return DAERAH_LAIN.some((d) => teks.includes(` ${d} `))
+}
+
 
 function ambilTag(blok, tag) {
   const m = blok.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'))
@@ -184,25 +222,42 @@ export async function tarikSatuSumber(sumber, keyword = KEYWORD_BAWAAN) {
   if (!/<rss|<feed|<rdf:RDF/i.test(teks)) return { kandidat: [], status: 'bukan feed RSS' }
 
   const mentah = parseRss(teks)
+
+  // Google News dibatasi: tiap artikel butuh 2 permintaan untuk memulihkan
+  // URL aslinya, jadi 100 item = 200 permintaan dan pasti kena batas waktu.
+  const dipakai = sumber.jenis === 'GNEWS' ? mentah.slice(0, BATAS_GNEWS) : mentah
+  const tenggat = Date.now() + TENGGAT_SUMBER_MS
+  let terpotong = 0
+
+  const diselesaikan = await petaBerbatas(dipakai, PARALEL_RESOLVE, async (m) => {
+    if (sumber.jenis !== 'GNEWS') return { ...m, urlFinal: m.url }
+    if (Date.now() > tenggat) { terpotong++; return null }
+    const urlFinal = await resolveUrl(m.url, m.urlCadangan, m.sourcePenerbit)
+    return urlFinal ? { ...m, urlFinal } : null
+  })
+
   const kandidat = []
-  for (const m of mentah) {
-    const url = sumber.jenis === 'GNEWS'
-      ? await resolveUrl(m.url, m.urlCadangan, m.sourcePenerbit)
-      : m.url
-    if (!url) continue
+  for (const m of diselesaikan) {
+    if (!m?.urlFinal) continue
     let p
-    try { p = new URL(url) } catch { continue }
+    try { p = new URL(m.urlFinal) } catch { continue }
     if (p.protocol !== 'http:' && p.protocol !== 'https:') continue
-    const host = safeHost(url)
+    const host = safeHost(m.urlFinal)
     if (!host || hostTerlarang(host)) continue
     // Sumber Google News sudah tersaring lewat query, RSS belum.
-    if (sumber.wajibKeyword !== false && !relevanBanyuwangi(m.judul, m.urlFinal, keyword)) continue
+    if (sumber.wajibKeyword !== false) {
+      if (!relevanBanyuwangi(m.judul, m.urlFinal, keyword)) continue
+    } else if (daerahLain(m.judul, m.urlFinal)) {
+      continue
+    }
     kandidat.push({
       judul: bersihkanJudul(m.judul, host).slice(0, 500),
-      url: url.replace(/\/+$/, ''),
+      url: m.urlFinal.replace(/\/+$/, ''),
       terbitAt: m.terbitAt,
       sumberNama: host.slice(0, 120),
     })
   }
-  return { kandidat, status: `ok: ${kandidat.length} item` }
+
+  const catatan = terpotong ? `, ${terpotong} dilewati karena waktu habis` : ''
+  return { kandidat, status: `ok: ${kandidat.length} item${catatan}` }
 }

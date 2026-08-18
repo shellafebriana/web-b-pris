@@ -672,12 +672,16 @@ export async function generateLaporanMonitoring(sesiId, formatId) {
 // Antrean kandidat
 // ---------------------------------------------------------------------
 
-export async function tarikKandidat({ batasSumber = 25 } = {}) {
+export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) {
   const { tarikSatuSumber } = await import('@/lib/monitoring/crawler')
 
   const sumber = await prisma.monitoringSumber.findMany({
-    where: { isActive: true, jenis: { in: ['RSS', 'GNEWS'] } },
-    take: batasSumber,
+    where: {
+      isActive: true,
+      jenis: { in: ['RSS', 'GNEWS'] },
+      ...(sumberId ? { id: BigInt(sumberId) } : {}),
+    },
+    take: sumberId ? 1 : batasSumber,
     orderBy: { lastRunAt: 'asc' },
   })
   if (sumber.length === 0) return { sumber: 0, baru: 0, duplikat: 0 }
@@ -744,6 +748,17 @@ export async function tarikKandidat({ batasSumber = 25 } = {}) {
   }
 
   return { sumber: sumber.length, baru, duplikat }
+}
+
+// Daftar sumber aktif untuk ditarik satu per satu dari klien — supaya tiap
+// permintaan pendek dan tidak kena batas waktu serverless.
+export async function getSumberAktif() {
+  const rows = await prisma.monitoringSumber.findMany({
+    where: { isActive: true, jenis: { in: ['RSS', 'GNEWS'] } },
+    orderBy: [{ jenis: 'asc' }, { nama: 'asc' }],
+    select: { id: true, nama: true, jenis: true },
+  })
+  return rows.map((r) => ({ id: r.id.toString(), nama: r.nama, jenis: r.jenis }))
 }
 
 export async function getKandidat({ page = 1, limit = 25, kanal = null } = {}) {

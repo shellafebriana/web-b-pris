@@ -21,6 +21,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
   const [pilihan, setPilihan] = useState(() => new Set())
   const [kategoriPilihan, setKategoriPilihan] = useState({})
   const [kategoriMassal, setKategoriMassal] = useState('')
+    const [kemajuan, setKemajuan] = useState(null)
 
   const petaKode = new Map(kategori.map((k) => [k.kode, k]))
 
@@ -50,18 +51,44 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
     })
   }
 
-  async function tarikSekarang() {
+    async function tarikSekarang() {
     setMenarik(true)
+    setKemajuan('menyiapkan...')
+    let totalBaru = 0
+    let gagal = 0
     try {
-      const r = await fetch('/api/monitoring/tarik', { method: 'POST' })
-      const hasil = await r.json()
-      if (hasil.error) showToast(hasil.error, 'error')
-      else showToast(`${hasil.baru} kandidat baru dari ${hasil.sumber} sumber`, 'success')
+      const daftar = await (await fetch('/api/monitoring/tarik')).json()
+      const sumber = daftar.sumber ?? []
+      if (sumber.length === 0) {
+        showToast('Belum ada sumber aktif. Isi dulu tabel sumber.', 'error')
+        return
+      }
+
+      // Berurutan, satu sumber per permintaan — supaya tiap panggilan pendek
+      // dan tidak kena batas waktu serverless (504).
+      for (let i = 0; i < sumber.length; i++) {
+        setKemajuan(`${i + 1}/${sumber.length} — ${sumber[i].nama}`)
+        try {
+          const r = await fetch(`/api/monitoring/tarik?id=${sumber[i].id}`, { method: 'POST' })
+          if (!r.ok) { gagal++; continue }
+          const h = await r.json()
+          totalBaru += h.baru ?? 0
+        } catch {
+          gagal++
+        }
+      }
+
+      showToast(
+        `${totalBaru} kandidat baru dari ${sumber.length - gagal} sumber` +
+          (gagal ? `, ${gagal} sumber gagal` : ''),
+        gagal === sumber.length ? 'error' : 'success'
+      )
       router.refresh()
     } catch {
       showToast('Gagal menarik. Cek koneksi lalu coba lagi.', 'error')
     } finally {
       setMenarik(false)
+      setKemajuan(null)
     }
   }
 
@@ -124,7 +151,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
             disabled={menarik || pending}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           >
-            {menarik ? 'Menarik...' : 'Tarik sekarang'}
+            {menarik ? (kemajuan ?? 'Menarik...') : 'Tarik sekarang'}
           </button>
           {pilihan.size > 0 ? (
             <>
