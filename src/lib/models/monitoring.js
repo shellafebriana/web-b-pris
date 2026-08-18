@@ -671,9 +671,25 @@ export async function generateLaporanMonitoring(sesiId, formatId) {
 // ---------------------------------------------------------------------
 // Antrean kandidat
 // ---------------------------------------------------------------------
+const judulHashDari = (sumberNama, judul) =>
+  crypto.createHash('sha256')
+    .update(`${sumberNama ?? ''}|${String(judul).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()}`)
+    .digest('hex')
 
 export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) {
   const { tarikSatuSumber } = await import('@/lib/monitoring/crawler')
+
+  // Bersihkan dulu supaya tabel menjaga ukurannya sendiri.
+  const batasBaru = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const batasLama = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  await prisma.monitoringKandidat.deleteMany({
+    where: {
+      OR: [
+        { status: 'baru', createdAt: { lt: batasBaru } },
+        { status: { in: ['diambil', 'ditolak'] }, createdAt: { lt: batasLama } },
+      ],
+    },
+  })
 
   const sumber = await prisma.monitoringSumber.findMany({
     where: {
@@ -686,11 +702,6 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
   })
   if (sumber.length === 0) return { sumber: 0, baru: 0, duplikat: 0 }
 
-  const { rules, platforms, kategori } = await konteksKlasifikasi()
-  const petaKode = new Map(kategori.map((k) => [k.id.toString(), k.kode]))
-
-  let baru = 0
-  let duplikat = 0
   const kwRow = await prisma.appConfig.findUnique({
     where: { key: 'monitoring.keyword_relevansi' },
   })
@@ -698,23 +709,32 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
     ? kwRow.value.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
     : undefined
 
-  // Sumber diproses berurutan, bukan Promise.all — kalau 25 feed ditarik
-  // sekaligus, koneksi pool ikut terbebani saat menulis hasilnya.
+  const { rules, platforms, kategori } = await konteksKlasifikasi()
+  const petaKode = new Map(kategori.map((k) => [k.id.toString(), k.kode]))
+
+  let baru = 0
+  let duplikat = 0
+
   for (const s of sumber) {
     let status = 'ok'
     try {
       const { kandidat, status: st } = await tarikSatuSumber(s, keyword)
       status = st
+
       for (const k of kandidat) {
-        const urlHash = hashUrl(k.url)
+        const judulHash = judulHashDari(k.sumberNama, k.judul)
 
-        // Sudah pernah masuk laporan? Jangan tawarkan lagi.
-        const sudahJadiItem = await prisma.monitoringItem.findFirst({
-          where: { urlHash }, select: { id: true },
-        })
-        if (sudahJadiItem) { duplikat++; continue }
+        // Kalau URL aslinya sudah diketahui, cek juga apakah sudah pernah
+        // masuk laporan. Untuk Google News tanpa urlAsli, dedup pakai judul.
+        if (k.urlAsli) {
+          const sudah = await prisma.monitoringItem.findFirst({
+            where: { urlHash: hashUrl(k.urlAsli) },
+            select: { id: true },
+          })
+          if (sudah) { duplikat++; continue }
+        }
 
-        const { kanal } = turunkanKanal(k.url, platforms)
+        const { kanal } = turunkanKanal(k.urlAsli ?? `https://${k.sumberNama}`, platforms)
         const saran = saranKategori(k.judul, k.sumberNama, rules, { kanal })
 
         try {
@@ -723,7 +743,10 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
               sumberId: s.id,
               judul: k.judul,
               url: k.url,
-              urlHash,
+              urlHash: hashUrl(k.urlAsli ?? k.url),
+              judulHash,
+              googleId: k.googleId ?? null,
+              urlAsli: k.urlAsli ?? null,
               terbitAt: k.terbitAt,
               kanal: kanal ?? 'ONLINE',
               sumberNama: k.sumberNama,
@@ -748,6 +771,75 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
   }
 
   return { sumber: sumber.length, baru, duplikat }
+}
+
+// Resolve dilakukan DI SINI — hanya untuk kandidat yang benar-benar dipilih.
+// Inilah inti perubahannya: biaya menempel pada yang dipakai, bukan yang ditarik.
+export async function ambilKandidat(sesiId, daftarId, petaKategori = {}) {
+  const { resolveUrl } = await import('@/lib/monitoring/crawler')
+
+  const ids = daftarId.map((x) => BigInt(x))
+  const rows = await prisma.monitoringKandidat.findMany({
+    where: { id: { in: ids }, status: 'baru' },
+    select: {
+      id: true, judul: true, url: true, urlAsli: true,
+      googleId: true, sumberNama: true, saranKode: true,
+    },
+  })
+  if (rows.length === 0) return { masuk: 0, duplikat: 0, gagal: [] }
+
+  const perluResolve = rows.filter((r) => !r.urlAsli && r.googleId)
+  const cache = perluResolve.length
+    ? await prisma.monitoringResolveCache.findMany({
+        where: { googleId: { in: perluResolve.map((r) => r.googleId) } },
+        select: { googleId: true, urlAsli: true },
+      })
+    : []
+  const petaCache = new Map(cache.map((c) => [c.googleId, c.urlAsli]))
+
+  const kategori = await prisma.monitoringKategori.findMany({ select: { id: true, kode: true } })
+  const petaKode = new Map(kategori.map((k) => [k.kode, k.id]))
+
+  const daftar = []
+  const gagalResolve = []
+
+  for (const r of rows) {
+    let url = r.urlAsli ?? petaCache.get(r.googleId) ?? null
+
+    if (!url && r.googleId) {
+      url = await resolveUrl(r.url, null, `https://${r.sumberNama}`)
+      if (url) {
+        await prisma.monitoringResolveCache.upsert({
+          where: { googleId: r.googleId },
+          update: { urlAsli: url },
+          create: { googleId: r.googleId, urlAsli: url },
+        })
+      }
+    }
+
+    if (!url) {
+      gagalResolve.push({ alasan: 'Link asli gagal dipulihkan', teks: r.judul.slice(0, 60) })
+      continue
+    }
+
+    const kode = petaKategori[r.id.toString()] ?? r.saranKode
+    daftar.push({
+      judul: r.judul,
+      url,
+      kategoriId: kode ? (petaKode.get(kode)?.toString() ?? null) : null,
+    })
+  }
+
+  const hasil = daftar.length
+    ? await tambahItemMonitoring(sesiId, daftar, { sumberInput: 'CRAWLER' })
+    : { masuk: 0, duplikat: 0, gagal: [] }
+
+  await prisma.monitoringKandidat.updateMany({
+    where: { id: { in: rows.map((r) => r.id) } },
+    data: { status: 'diambil' },
+  })
+
+  return { ...hasil, gagal: [...hasil.gagal, ...gagalResolve] }
 }
 
 // Daftar sumber aktif untuk ditarik satu per satu dari klien — supaya tiap
@@ -790,7 +882,8 @@ export async function getKandidat({ page = 1, limit = 25, kanal = null } = {}) {
     data: rows.map((r) => ({
       id: r.id.toString(),
       judul: r.judul,
-      url: r.url,
+      url: r.urlAsli ?? r.url,
+      sudahResolve: Boolean(r.urlAsli),
       kanal: r.kanal,
       sumberNama: r.sumberNama,
       jenisSumber: r.sumber?.jenis ?? null,
@@ -804,38 +897,6 @@ export async function getKandidat({ page = 1, limit = 25, kanal = null } = {}) {
     })),
     pagination: { page, limit, total, totalPage: Math.ceil(total / limit) },
   }
-}
-
-// Kandidat terpilih dipindah jadi item sesi. Judul & URL diambil ULANG dari
-// tabel kandidat, bukan dari yang dikirim klien.
-export async function ambilKandidat(sesiId, daftarId, petaKategori = {}) {
-  const ids = daftarId.map((x) => BigInt(x))
-  const rows = await prisma.monitoringKandidat.findMany({
-    where: { id: { in: ids }, status: 'baru' },
-    select: { id: true, judul: true, url: true, saranKode: true },
-  })
-  if (rows.length === 0) return { masuk: 0, duplikat: 0, gagal: [] }
-
-  const kategori = await prisma.monitoringKategori.findMany({ select: { id: true, kode: true } })
-  const petaKode = new Map(kategori.map((k) => [k.kode, k.id]))
-
-  const daftar = rows.map((r) => {
-    const kodeDipilih = petaKategori[r.id.toString()] ?? r.saranKode
-    return {
-      judul: r.judul,
-      url: r.url,
-      kategoriId: kodeDipilih ? (petaKode.get(kodeDipilih)?.toString() ?? null) : null,
-    }
-  })
-
-  const hasil = await tambahItemMonitoring(sesiId, daftar, { sumberInput: 'CRAWLER' })
-
-  await prisma.monitoringKandidat.updateMany({
-    where: { id: { in: rows.map((r) => r.id) } },
-    data: { status: 'diambil' },
-  })
-
-  return hasil
 }
 
 export async function tolakKandidat(daftarId) {

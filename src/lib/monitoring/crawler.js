@@ -3,24 +3,9 @@
 
 const UA = 'SIHUMAS-Monitor/1.0 (+Humas Polresta Banyuwangi)'
 const BATAS_ITEM = 100
-
-const BATAS_GNEWS = 10          // tiap artikel butuh 2 fetch ke Google
-const PARALEL_RESOLVE = 8
-const TENGGAT_SUMBER_MS = 25000 // di bawah batas waktu serverless
-
-// Jalankan dengan batas paralel — bukan Promise.all penuh (bisa ratusan
-// koneksi sekaligus) dan bukan berurutan (terlalu lambat, kena 504).
-async function petaBerbatas(daftar, batas, fn) {
-  const hasil = new Array(daftar.length)
-  let i = 0
-  const pekerja = Array.from({ length: Math.min(batas, daftar.length) }, async () => {
-    while (i < daftar.length) {
-      const idx = i++
-      hasil[idx] = await fn(daftar[idx])
-    }
-  })
-  await Promise.all(pekerja)
-  return hasil
+// Ambil id artikel dari URL Google News. Id ini stabil, jadi bisa di-cache.
+export function googleIdDari(url) {
+  return url.match(/\/(?:rss\/)?articles\/([^?/]+)/)?.[1] ?? null
 }
 
 // RSS media TIDAK punya filter kata kunci — feed memberi SEMUA artikel yang
@@ -222,42 +207,51 @@ export async function tarikSatuSumber(sumber, keyword = KEYWORD_BAWAAN) {
   if (!/<rss|<feed|<rdf:RDF/i.test(teks)) return { kandidat: [], status: 'bukan feed RSS' }
 
   const mentah = parseRss(teks)
-
-  // Google News dibatasi: tiap artikel butuh 2 permintaan untuk memulihkan
-  // URL aslinya, jadi 100 item = 200 permintaan dan pasti kena batas waktu.
-  const dipakai = sumber.jenis === 'GNEWS' ? mentah.slice(0, BATAS_GNEWS) : mentah
-  const tenggat = Date.now() + TENGGAT_SUMBER_MS
-  let terpotong = 0
-
-  const diselesaikan = await petaBerbatas(dipakai, PARALEL_RESOLVE, async (m) => {
-    if (sumber.jenis !== 'GNEWS') return { ...m, urlFinal: m.url }
-    if (Date.now() > tenggat) { terpotong++; return null }
-    const urlFinal = await resolveUrl(m.url, m.urlCadangan, m.sourcePenerbit)
-    return urlFinal ? { ...m, urlFinal } : null
-  })
-
   const kandidat = []
-  for (const m of diselesaikan) {
-    if (!m?.urlFinal) continue
-    let p
-    try { p = new URL(m.urlFinal) } catch { continue }
-    if (p.protocol !== 'http:' && p.protocol !== 'https:') continue
-    const host = safeHost(m.urlFinal)
-    if (!host || hostTerlarang(host)) continue
-    // Sumber Google News sudah tersaring lewat query, RSS belum.
+  let dibuang = 0
+
+  for (const m of mentah) {
+    const urlUjiFilter = sumber.jenis === 'GNEWS' ? null : m.url
+
     if (sumber.wajibKeyword !== false) {
-      if (!relevanBanyuwangi(m.judul, m.urlFinal, keyword)) continue
-    } else if (daerahLain(m.judul, m.urlFinal)) {
+      if (!relevanBanyuwangi(m.judul, urlUjiFilter, keyword)) { dibuang++; continue }
+    } else if (daerahLain(m.judul, urlUjiFilter)) {
+      dibuang++
       continue
     }
+
+    if (sumber.jenis === 'GNEWS') {
+      // URL asli TIDAK diresolve di sini. Yang disimpan cukup judul + nama
+      // penerbit; resolve dilakukan nanti hanya untuk yang benar-benar dipakai.
+      const penerbit = m.sourcePenerbit ? safeHost(m.sourcePenerbit) : null
+      if (!penerbit || hostTerlarang(penerbit)) { dibuang++; continue }
+      kandidat.push({
+        judul: bersihkanJudul(m.judul, penerbit).slice(0, 500),
+        url: m.url,
+        urlAsli: m.urlCadangan && safeHost(m.urlCadangan) === penerbit ? m.urlCadangan : null,
+        googleId: googleIdDari(m.url),
+        terbitAt: m.terbitAt,
+        sumberNama: penerbit.slice(0, 120),
+      })
+      continue
+    }
+
+    let p
+    try { p = new URL(m.url) } catch { continue }
+    if (p.protocol !== 'http:' && p.protocol !== 'https:') continue
+    const host = safeHost(m.url)
+    if (!host || hostTerlarang(host)) continue
+
     kandidat.push({
       judul: bersihkanJudul(m.judul, host).slice(0, 500),
-      url: m.urlFinal.replace(/\/+$/, ''),
+      url: m.url.replace(/\/+$/, ''),
+      urlAsli: m.url.replace(/\/+$/, ''),   // RSS sudah URL asli
+      googleId: null,
       terbitAt: m.terbitAt,
       sumberNama: host.slice(0, 120),
     })
   }
 
-  const catatan = terpotong ? `, ${terpotong} dilewati karena waktu habis` : ''
+  const catatan = dibuang ? `, ${dibuang} tersaring` : ''
   return { kandidat, status: `ok: ${kandidat.length} item${catatan}` }
 }

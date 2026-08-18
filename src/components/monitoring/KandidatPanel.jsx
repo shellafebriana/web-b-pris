@@ -237,14 +237,23 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
                     <p className="text-sm text-gray-800 dark:text-white/90">{k.judul}</p>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-                      <a
-                        href={k.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-brand-600 hover:underline dark:text-brand-400"
-                      >
-                        {k.sumberNama}
-                      </a>
+                      {k.sudahResolve ? (
+                        <a
+                          href={k.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-brand-600 hover:underline dark:text-brand-400"
+                        >
+                          {k.sumberNama}
+                        </a>
+                      ) : (
+                        <span
+                          className="text-gray-500 dark:text-gray-400"
+                          title="Link asli dipulihkan saat item ditambahkan"
+                        >
+                          {k.sumberNama}
+                        </span>
+                      )}
                       <span className="text-gray-300 dark:text-gray-600">·</span>
                       <span className="text-gray-400 dark:text-gray-500">
                         {k.jenisSumber === 'GNEWS' ? 'Google News' : 'RSS'}

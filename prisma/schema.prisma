@@ -280,7 +280,10 @@ model MonitoringKandidat {
   sumberId   BigInt
   judul      String    @db.Text
   url        String    @db.Text
-  urlHash    String    @unique @db.VarChar(64)
+  urlHash    String    @db.VarChar(64)          
+  judulHash  String    @db.VarChar(64)          
+  googleId   String?   @db.VarChar(400)         
+  urlAsli    String?   @db.Text                 
   terbitAt   DateTime?
   kanal      String    @db.VarChar(8)          // ONLINE | SOSMED
   sumberNama String?   @db.VarChar(120)        // hostname hasil resolve
@@ -291,8 +294,10 @@ model MonitoringKandidat {
 
   sumber MonitoringSumber @relation(fields: [sumberId], references: [id], onDelete: Cascade)
 
+  @@unique([judulHash])
   @@index([status, terbitAt])
   @@index([sumberId])
+  @@index([urlHash])
 }
 
 model MonitoringDomain {
@@ -306,4 +311,13 @@ model MonitoringDomain {
 
   @@index([kanal, totalItem])
   @@index([firstSeenAt])
+}
+
+model MonitoringResolveCache {
+  id        BigInt   @id @default(autoincrement())
+  googleId  String   @unique @db.VarChar(400)
+  urlAsli   String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
