@@ -12,7 +12,8 @@ import {
   generateLaporanMonitoring,
   ambilKandidat,
   tolakKandidat,
-  tandaiSudahReview
+  tandaiSudahReview,
+  perbaruiKlaster
 } from '@/lib/models/monitoring'
 import { getDayRange } from '@/lib/date-helpers'
 import { pisahJudulUrl } from '@/lib/monitoring/klasifikasi'
@@ -51,7 +52,9 @@ export async function tambahItemAction(sesiId, prevState, formData) {
     if (daftar.length === 0) return { error: 'Tidak ada link yang terbaca' }
 
     const hasil = await tambahItemMonitoring(sesiId, daftar)
+    await perbaruiKlaster()
     revalidatePath(`/monitoring/${sesiId}`)
+    revalidatePath('/dashboard')
 
     const pesan = [`${hasil.masuk} item masuk`]
     if (hasil.duplikat) pesan.push(`${hasil.duplikat} sudah ada`)
@@ -121,7 +124,7 @@ export async function ambilKandidatAction(daftarId, petaKategori = {}) {
 
     const sesiId = await buatSesiMonitoring(tanggal)
     const hasil = await ambilKandidat(sesiId, daftarId, petaKategori)
-
+    await perbaruiKlaster()
     revalidatePath('/monitoring/kandidat')
     revalidatePath(`/monitoring/${sesiId}`)
     revalidatePath('/monitoring')

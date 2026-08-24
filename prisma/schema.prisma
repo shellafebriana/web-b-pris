@@ -282,7 +282,7 @@ model MonitoringKandidat {
   url        String    @db.Text
   urlHash    String    @db.VarChar(64)          
   judulHash  String    @db.VarChar(64)          
-  googleId   String?   @db.VarChar(400)         
+  googleId   String?   @db.VarChar(64)   // sha256 dari id artikel, bukan id mentah        
   urlAsli    String?   @db.Text                 
   terbitAt   DateTime?
   kanal      String    @db.VarChar(8)          // ONLINE | SOSMED
@@ -315,7 +315,7 @@ model MonitoringDomain {
 
 model MonitoringResolveCache {
   id        BigInt   @id @default(autoincrement())
-  googleId  String   @unique @db.VarChar(400)
+  googleId  String   @unique @db.VarChar(64)
   urlAsli   String   @db.Text
   createdAt DateTime @default(now())
 

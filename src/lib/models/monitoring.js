@@ -980,3 +980,117 @@ export async function tandaiSudahReview(daftarId) {
     })
   }
 }
+// ---------------------------------------------------------------------
+// Pembaruan klaster isu
+// ---------------------------------------------------------------------
+const STOP_KLASTER = new Set('yang untuk dari dengan dalam pada akan telah sudah tidak juga saat usai hingga serta lebih masih agar bisa dapat tetap oleh atas para ini itu dan atau banyuwangi jatim jawa timur kabupaten kecamatan desa kembali jadi soal'.split(' '))
+
+const tokenJudul = (s) =>
+  [...new Set(
+    String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ').split(' ')
+      .filter((w) => w.length > 3 && !STOP_KLASTER.has(w))
+  )]
+
+const jaccard = (a, b) => {
+  const irisan = a.filter((x) => b.includes(x)).length
+  return irisan / (a.length + b.length - irisan)
+}
+
+// Dibangun ulang hanya untuk rentang terakhir, bukan seluruh riwayat.
+// Jendela dilebihkan 3 hari supaya klaster yang melintasi batas tidak terbelah.
+export async function perbaruiKlaster({ hari = 14 } = {}) {
+  const { endOfDay } = getDayRange()
+  const mulai = new Date(endOfDay.getTime() - (hari + 3) * 24 * 60 * 60 * 1000)
+
+  const ambangRow = await prisma.appConfig.findUnique({
+    where: { key: 'monitoring.ambang_klaster' },
+  })
+  const ambang = Number(ambangRow?.value) || 0.18
+
+  const { ids } = await sesiDalamRentang(mulai, endOfDay)
+  if (ids.length === 0) return { isu: 0 }
+
+  // Hapus isu lama yang jatuh di rentang ini. isuId di item otomatis null
+  // karena relasinya onDelete: SetNull.
+  await prisma.monitoringIsu.deleteMany({ where: { lastDate: { gte: mulai } } })
+
+  const items = await prisma.monitoringItem.findMany({
+    where: { sesiId: { in: ids } },
+    select: {
+      id: true, judul: true, kanal: true, kategoriId: true,
+      sesi: { select: { contentDate: true } },
+    },
+  })
+
+  const rows = items
+    .map((r) => ({
+      id: r.id,
+      judul: r.judul,
+      kanal: r.kanal,
+      kategoriId: r.kategoriId.toString(),
+      tgl: tanggalWib(r.sesi.contentDate),
+      tok: tokenJudul(r.judul),
+    }))
+    .sort((a, b) => a.tgl.localeCompare(b.tgl))
+
+  const dipakai = new Set()
+  let nIsu = 0
+
+  for (let a = 0; a < rows.length; a++) {
+    if (dipakai.has(a)) continue
+    const grup = [rows[a]]
+    dipakai.add(a)
+
+    for (let b = a + 1; b < rows.length; b++) {
+      if (dipakai.has(b)) continue
+      // Berhenti begitu selisih lewat 3 hari — data sudah terurut tanggal,
+      // jadi tidak perlu membandingkan seluruh pasangan.
+      if ((Date.parse(rows[b].tgl) - Date.parse(rows[a].tgl)) / 864e5 > 3) break
+      if (jaccard(rows[a].tok, rows[b].tok) >= ambang) {
+        grup.push(rows[b])
+        dipakai.add(b)
+      }
+    }
+    if (grup.length < 2) continue
+
+    const hitung = {}
+    for (const g of grup) hitung[g.tgl] = (hitung[g.tgl] || 0) + 1
+    const tglUrut = Object.keys(hitung).sort()
+    const online = grup.filter((g) => g.kanal === 'ONLINE').length
+    const sosmed = grup.length - online
+    const nKategori = new Set(grup.map((g) => g.kategoriId)).size
+
+    // Jumlah sumber 40%, lintas kanal 25%, bertahan 20%, terbelah 15%.
+    const skor = Math.round(
+      grup.length * 4 +
+      (online > 0 && sosmed > 0 ? 25 : 0) +
+      (tglUrut.length - 1) * 10 +
+      (nKategori > 1 ? 15 : 0)
+    )
+
+    const isu = await prisma.monitoringIsu.create({
+      data: {
+        judul: grup[0].judul.slice(0, 2000),
+        tokenJson: grup[0].tok,
+        firstDate: new Date(`${tglUrut[0]}T00:00:00.000+07:00`),
+        lastDate: new Date(`${tglUrut[tglUrut.length - 1]}T00:00:00.000+07:00`),
+        totalItem: grup.length,
+        totalOnline: online,
+        totalSosmed: sosmed,
+        kategoriCount: nKategori,
+        hitungPerHari: hitung,
+        skor,
+      },
+      select: { id: true },
+    })
+
+    await prisma.monitoringItem.updateMany({
+      where: { id: { in: grup.map((g) => g.id) } },
+      data: { isuId: isu.id },
+    })
+    nIsu++
+  }
+
+  return { isu: nIsu }
+}
