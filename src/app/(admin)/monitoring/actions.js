@@ -13,7 +13,8 @@ import {
   ambilKandidat,
   tolakKandidat,
   tandaiSudahReview,
-  perbaruiKlaster
+  perbaruiKlaster,
+  ubahItemMonitoring
 } from '@/lib/models/monitoring'
 import { getDayRange } from '@/lib/date-helpers'
 import { pisahJudulUrl } from '@/lib/monitoring/klasifikasi'
@@ -157,6 +158,36 @@ export async function tandaiReviewAction(daftarId) {
     }
     await tandaiSudahReview(daftarId)
     revalidatePath('/monitoring/review')
+    revalidatePath('/monitoring')
+    return { sukses: true }
+  } catch (error) {
+    return { error: error.message }
+  }
+}
+
+export async function ubahItemAction(itemId, sesiId, prevState, formData) {
+  await requireAdmin()
+  try {
+    await ubahItemMonitoring(itemId, {
+      judul: formData.get('judul'),
+      url: formData.get('url'),
+    })
+    revalidatePath(`/monitoring/${sesiId}`)
+    revalidatePath('/monitoring/review')
+    return { sukses: 'Item diperbarui' }
+  } catch (error) {
+    return { error: error.message }
+  }
+}
+
+export async function tandaiReviewSesiAction(daftarId, sesiId) {
+  await requireAdmin()
+  try {
+    if (!Array.isArray(daftarId) || daftarId.length === 0) {
+      return { error: 'Belum ada item yang dipilih' }
+    }
+    await tandaiSudahReview(daftarId)
+    revalidatePath(`/monitoring/${sesiId}`)
     revalidatePath('/monitoring')
     return { sukses: true }
   } catch (error) {

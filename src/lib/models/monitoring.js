@@ -208,12 +208,12 @@ export async function getSentimenPolri({ hari = 30 } = {}) {
     _count: { _all: true },
   })
 
-  const perHari = new Map()
+    const perHari = new Map()
   for (const g of grup) {
     const tgl = petaTanggal.get(g.sesiId)
     if (!tgl) continue
     const sentimen = petaSentimen.get(g.kategoriId.toString())
-    const slot = perHari.get(tgl) ?? { tanggal: tgl, positif: 0, negatif: 0 }
+    const slot = perHari.get(tgl) ?? { tanggal: tgl, sesiId: g.sesiId, positif: 0, negatif: 0 }
     if (sentimen === 'POSITIF') slot.positif += angka(g._count._all)
     else if (sentimen === 'NEGATIF') slot.negatif += angka(g._count._all)
     perHari.set(tgl, slot)
@@ -222,8 +222,8 @@ export async function getSentimenPolri({ hari = 30 } = {}) {
   // Hari tanpa sesi tetap dimunculkan sebagai nol, biar grafik tidak bohong
   // soal kerapatan data.
   const deret = []
-  for (const tgl of petaTanggal.values()) {
-    deret.push(perHari.get(tgl) ?? { tanggal: tgl, positif: 0, negatif: 0 })
+  for (const [sesiId, tgl] of petaTanggal.entries()) {
+    deret.push(perHari.get(tgl) ?? { tanggal: tgl, sesiId, positif: 0, negatif: 0 })
   }
   deret.sort((a, b) => a.tanggal.localeCompare(b.tanggal))
 
@@ -235,7 +235,13 @@ export async function getSentimenPolri({ hari = 30 } = {}) {
     deret,
     positif,
     negatif,
+    total,
     rasio: total > 0 ? Math.round((positif / total) * 100) : null,
+    // Hari bernegatif dipisah supaya tidak perlu dicari ulang di komponen.
+    hariNegatif: deret
+      .filter((d) => d.negatif > 0)
+      .sort((a, b) => b.tanggal.localeCompare(a.tanggal))
+      .map((d) => ({ tanggal: d.tanggal, sesiId: d.sesiId, negatif: d.negatif })),
   }
 }
 
@@ -984,6 +990,16 @@ export async function tandaiSudahReview(daftarId) {
 // Pembaruan klaster isu
 // ---------------------------------------------------------------------
 const STOP_KLASTER = new Set('yang untuk dari dengan dalam pada akan telah sudah tidak juga saat usai hingga serta lebih masih agar bisa dapat tetap oleh atas para ini itu dan atau banyuwangi jatim jawa timur kabupaten kecamatan desa kembali jadi soal'.split(' '))
+// Konten rutin harian yang judulnya nyaris sama tiap hari — jadwal imsakiyah,
+// prakiraan cuaca, jadwal kapal. Terkelompok sendiri jadi "isu" padahal bukan.
+const POLA_RUTIN = [
+  /jadwal\s+(imsakiyah|sholat|salat|kapal|penyeberangan|ferry|feri)/i,
+  /prakiraan\s+cuaca/i,
+  /harga\s+(emas|sembako|pangan)\s+hari\s+ini/i,
+  /(imsakiyah|buka\s+puasa)\s+hari\s+ini/i,
+]
+
+const kontenRutin = (judul) => POLA_RUTIN.some((p) => p.test(judul))
 
 const tokenJudul = (s) =>
   [...new Set(
@@ -1024,6 +1040,7 @@ export async function perbaruiKlaster({ hari = 14 } = {}) {
   })
 
   const rows = items
+  .filter((r) => !kontenRutin(r.judul))
     .map((r) => ({
       id: r.id,
       judul: r.judul,
@@ -1093,4 +1110,47 @@ export async function perbaruiKlaster({ hari = 14 } = {}) {
   }
 
   return { isu: nIsu }
+}
+
+export async function ubahItemMonitoring(itemId, { judul, url }) {
+  const item = await prisma.monitoringItem.findUnique({
+    where: { id: BigInt(itemId) },
+    select: { id: true, sesiId: true, sesi: { select: { state: true } } },
+  })
+  if (!item) throw new Error('Item tidak ditemukan')
+  if (item.sesi.state === 'final') throw new Error('Sesi sudah final, buka kembali dulu')
+
+  const judulBaru = String(judul ?? '').trim().slice(0, 2000)
+  if (!judulBaru) throw new Error('Judul tidak boleh kosong')
+
+  const urlBaru = normalizeUrlMonitoring(url ?? '')
+  if (!isUrlAman(urlBaru)) throw new Error('Link harus diawali http:// atau https://')
+
+  // Kanal diturunkan ULANG dari domain — jangan percaya nilai lama kalau
+  // link-nya diganti (mis. dari berita online jadi tautan Instagram).
+  const platforms = await prisma.platform.findMany({
+    select: { id: true, domain: true, category: true },
+  })
+  const { kanal, platformId, sumber } = turunkanKanal(urlBaru, platforms)
+  if (!kanal) throw new Error('Domain link tidak terbaca')
+
+  try {
+    await prisma.monitoringItem.update({
+      where: { id: item.id },
+      data: {
+        judul: judulBaru,
+        url: urlBaru,
+        urlHash: hashUrl(urlBaru),
+        kanal,
+        platformId,
+        sumber: sumber?.slice(0, 120) ?? null,
+        isReviewed: true,
+      },
+    })
+  } catch (e) {
+    if (e.code === 'P2002') throw new Error('Link ini sudah ada di sesi hari itu')
+    throw e
+  }
+
+  await sinkronTotal(item.sesiId)
 }

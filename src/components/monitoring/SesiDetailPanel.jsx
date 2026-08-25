@@ -1,12 +1,14 @@
 'use client'
 
-import { useMemo, useState, useTransition, useActionState } from 'react'
+import { useEffect, useMemo, useState, useTransition, useActionState } from 'react'
 import { useToast } from '@/context/ToastProvider'
 import {
   tambahItemAction,
+  ubahItemAction,
   ubahKategoriAction,
   hapusItemAction,
   ubahStateAction,
+  tandaiReviewSesiAction,
 } from '@/app/(admin)/monitoring/actions'
 import Link from 'next/link'
 
@@ -21,6 +23,8 @@ export default function SesiDetailPanel({ sesi }) {
   const [modalBuka, setModalBuka] = useState(false)
   const [kanalAktif, setKanalAktif] = useState('ONLINE')
   const [hanyaReview, setHanyaReview] = useState(false)
+  const [pilihan, setPilihan] = useState(() => new Set())
+  const [itemEdit, setItemEdit] = useState(null)
   const final = sesi.state === 'final'
 
   const petaKategori = useMemo(
@@ -69,6 +73,27 @@ export default function SesiDetailPanel({ sesi }) {
         r?.error ?? (tujuan === 'final' ? 'Sesi difinalkan' : 'Sesi dibuka kembali'),
         r?.error ? 'error' : 'success'
       )
+    })
+  }
+
+  const tampilId = tampil.flatMap((g) => g.items.filter((i) => !i.isReviewed).map((i) => i.id))
+  const semuaTercentang = tampilId.length > 0 && tampilId.every((id) => pilihan.has(id))
+
+  function togglePilih(id) {
+    setPilihan((lama) => {
+      const baru = new Set(lama)
+      baru.has(id) ? baru.delete(id) : baru.add(id)
+      return baru
+    })
+  }
+
+  function tandaiBenar() {
+    const ids = [...pilihan]
+    startTransition(async () => {
+      const r = await tandaiReviewSesiAction(ids, sesi.id)
+      if (r?.error) return showToast(r.error, 'error')
+      showToast(`${ids.length} item ditandai sudah benar`, 'success')
+      setPilihan(new Set())
     })
   }
 
@@ -136,6 +161,31 @@ export default function SesiDetailPanel({ sesi }) {
         </div>
       </div>
 
+      {!final && tampilId.length > 0 && tampilId.length > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 dark:border-gray-800 dark:bg-gray-900/40">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={semuaTercentang}
+              onChange={() => setPilihan(semuaTercentang ? new Set() : new Set(tampilId))}
+              className="size-4 accent-brand-500"
+            />
+            Centang semua yang perlu review ({tampilId.length})
+          </label>
+
+          {pilihan.size > 0 ? (
+            <button
+              type="button"
+              onClick={tandaiBenar}
+              disabled={pending}
+              className="ml-auto rounded-lg bg-success-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-success-600 disabled:opacity-50"
+            >
+              Tandai {pilihan.size} sudah benar
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {tampil.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/3">
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -160,48 +210,70 @@ export default function SesiDetailPanel({ sesi }) {
                 {g.items.map((it) => (
                   <div
                     key={it.id}
-                    className={`px-5 py-3 ${!it.isReviewed ? 'bg-warning-50/50 dark:bg-warning-500/5' : ''}`}
+                    className={`flex gap-3 px-5 py-3 ${!it.isReviewed ? 'bg-warning-50/50 dark:bg-warning-500/5' : ''}`}
                   >
-                    <p className="text-sm text-gray-800 dark:text-white/90">{it.judul}</p>
+                    {!final && !it.isReviewed ? (
+                      <input
+                        type="checkbox"
+                        checked={pilihan.has(it.id)}
+                        onChange={() => togglePilih(it.id)}
+                        aria-label={`Pilih ${it.judul}`}
+                        className="mt-1 size-4 flex-none accent-brand-500"
+                      />
+                    ) : null}
 
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-                      <a
-                        href={it.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="max-w-[220px] truncate text-brand-600 hover:underline dark:text-brand-400"
-                      >
-                        {it.sumber ?? it.url}
-                      </a>
-                      {!it.isReviewed ? (
-                        <span className="rounded-full bg-warning-50 px-2 py-0.5 font-medium text-warning-600 dark:bg-warning-500/15 dark:text-orange-400">
-                          perlu review
-                        </span>
-                      ) : null}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-800 dark:text-white/90">{it.judul}</p>
 
-                      <select
-                        value={it.kategoriId}
-                        onChange={(e) => gantiKategori(it.id, e.target.value)}
-                        disabled={final || pending}
-                        className="ml-auto rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                      >
-                        {sesi.kategori.map((k) => (
-                          <option key={k.id} value={k.id}>
-                            {k.sortOrder}. {k.nama}
-                          </option>
-                        ))}
-                      </select>
-
-                      {!final ? (
-                        <button
-                          type="button"
-                          onClick={() => hapus(it.id)}
-                          disabled={pending}
-                          className="text-gray-400 hover:text-error-500 disabled:opacity-50"
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
+                        <a
+                          href={it.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="max-w-[220px] truncate text-brand-600 hover:underline dark:text-brand-400"
                         >
-                          Hapus
-                        </button>
-                      ) : null}
+                          {it.sumber ?? it.url}
+                        </a>
+                        {!it.isReviewed ? (
+                          <span className="rounded-full bg-warning-50 px-2 py-0.5 font-medium text-warning-600 dark:bg-warning-500/15 dark:text-orange-400">
+                            perlu review
+                          </span>
+                        ) : null}
+
+                        <select
+                          value={it.kategoriId}
+                          onChange={(e) => gantiKategori(it.id, e.target.value)}
+                          disabled={final || pending}
+                          className="ml-auto rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        >
+                          {sesi.kategori.map((k) => (
+                            <option key={k.id} value={k.id}>
+                              {k.sortOrder}. {k.nama}
+                            </option>
+                          ))}
+                        </select>
+
+                        {!final ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setItemEdit(it)}
+                              disabled={pending}
+                              className="text-gray-400 hover:text-brand-500 disabled:opacity-50"
+                            >
+                              Ubah
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => hapus(it.id)}
+                              disabled={pending}
+                              className="text-gray-400 hover:text-error-500 disabled:opacity-50"
+                            >
+                              Hapus
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -219,6 +291,16 @@ export default function SesiDetailPanel({ sesi }) {
           onGagal={(pesan) => showToast(pesan, 'error')}
         />
       ) : null}
+
+      {itemEdit ? (
+        <ModalUbah
+          item={itemEdit}
+          sesiId={sesi.id}
+          onTutup={() => setItemEdit(null)}
+          onSukses={(pesan) => showToast(pesan, 'success')}
+          onGagal={(pesan) => showToast(pesan, 'error')}
+        />
+      ) : null}
     </div>
   )
 }
@@ -229,14 +311,15 @@ function ModalTambah({ sesi, onTutup, onSukses, onGagal }) {
     null
   )
 
-  if (state?.error) {
-    onGagal(state.error)
-    state.error = null
-  } else if (state?.sukses) {
-    onSukses(state.sukses)
-    state.sukses = null
-    onTutup()
-  }
+  useEffect(() => {
+    if (!state) return
+    if (state.error) {
+      onGagal(state.error)
+    } else if (state.sukses) {
+      onSukses(state.sukses)
+      onTutup()
+    }
+  }, [state])
 
   return (
     <div className="fixed inset-0 z-999999 flex items-center justify-center bg-black/40 p-4">
@@ -278,6 +361,80 @@ function ModalTambah({ sesi, onTutup, onSukses, onGagal }) {
                 <option key={k.id} value={k.id}>{k.sortOrder}. {k.nama}</option>
               ))}
             </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onTutup}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-700 dark:text-gray-300"
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+            >
+              {pending ? 'Menyimpan...' : 'Simpan'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function ModalUbah({ item, sesiId, onTutup, onSukses, onGagal }) {
+  const [state, formAction, pending] = useActionState(
+    ubahItemAction.bind(null, item.id, sesiId),
+    null
+  )
+
+  useEffect(() => {
+    if (!state) return
+    if (state.error) onGagal(state.error)
+    else if (state.sukses) {
+      onSukses(state.sukses)
+      onTutup()
+    }
+  }, [state])
+
+  return (
+    <div className="fixed inset-0 z-999999 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 dark:bg-gray-900">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Ubah item</h3>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Kanal ditentukan ulang dari alamat link.
+        </p>
+
+        <form action={formAction} className="mt-4 space-y-3">
+          <div>
+            <label htmlFor="judul-ubah" className="mb-1.5 block text-sm text-gray-700 dark:text-gray-300">
+              Judul / caption
+            </label>
+            <textarea
+              id="judul-ubah"
+              name="judul"
+              rows={4}
+              required
+              defaultValue={item.judul}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="url-ubah" className="mb-1.5 block text-sm text-gray-700 dark:text-gray-300">
+              Link
+            </label>
+            <input
+              id="url-ubah"
+              name="url"
+              type="url"
+              required
+              defaultValue={item.url}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
