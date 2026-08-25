@@ -200,7 +200,201 @@ export function bangunUrlGnews(query) {
   return `https://news.google.com/rss/search?q=${q}&hl=id&gl=ID&ceid=ID:id`
 }
 
+// ---------------------------------------------------------------------
+// Instagram — jalur akun sendiri (Jalur A)
+// ---------------------------------------------------------------------
+const GRAPH_VERSI = 'v26.0'
+const BATAS_IG = 25
+
+// Titik pada gelar/singkatan BUKAN akhir kalimat. Tanpa daftar ini judul
+// "Kapolresta Kombes Pol Dr. Rofiq..." terpotong jadi 25 karakter.
+const SINGKATAN_TITIK = [
+  'Dr', 'Prof', 'Drs', 'Ir', 'Hj', 'KH', 'Ny', 'Nn', 'Tn', 'Sdr', 'Sdri',
+  'Bpk', 'Alm', 'Almh', 'Ust', 'Pdt', 'Rm', 'Si', 'Sos', 'Kom', 'Pol', 'Ak',
+  'Tr', 'Han', 'Md', 'Jl', 'No', 'Nomor', 'Kel', 'Kec', 'Kab', 'Ds', 'Gg',
+  'Tgl', 'Rp', 'km', 'kg', 'ha', 'dll', 'dsb', 'dst', 'hlm', 'Tbk',
+]
+// Judul sependek "BREAKING!!" tidak berguna buat operator.
+const MIN_JUDUL = 25
+
+// Caption IG bukan judul berita: multi-paragraf, ditutup blok hashtag,
+// kadang beremoji. Dipecah jadi dua keluaran karena kebutuhannya berbeda —
+// judul untuk dibaca operator, teksRelevansi untuk disaring keyword.
+//
+// Hashtag sengaja DIPECAH camelCase untuk teksRelevansi: normRelevansi
+// membuang non-alfanumerik sehingga "#PolrestaBanyuwangi" jadi satu kata
+// utuh dan pencocokan kata-utuh gagal menemukan "banyuwangi" di dalamnya.
+export function bersihkanCaption(caption) {
+  const mentah = String(caption ?? '')
+
+  const tagDipecah = (mentah.match(/#[\p{L}\p{N}_]+/gu) ?? [])
+    .map((t) => t.slice(1).replace(/_+/g, ' ').replace(/([a-z\d])([A-Z])/g, '$1 $2'))
+    .join(' ')
+  const teksRelevansi = `${mentah.replace(/#[\p{L}\p{N}_]+/gu, ' ')} ${tagDipecah}`
+
+  const badan = mentah
+    .replace(/#[\p{L}\p{N}_]+/gu, ' ')
+    .replace(/@[\p{L}\p{N}_.]+/gu, ' ')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu, ' ')
+    .replace(/[\u201C\u201D\u201E]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .split('\n').map((b) => b.trim()).filter(Boolean).join(' ')
+    .replace(/\s+/g, ' ').trim()
+  if (!badan) return { judul: '', teksRelevansi }
+
+  const simpan = []
+  const tandai = (m) => `\u0000${simpan.push(m) - 1}\u0000`
+  const aman = badan
+    .replace(/\b(?:[A-Za-z]\.){1,5}/g, tandai)
+    .replace(new RegExp(`\\b(?:${SINGKATAN_TITIK.join('|')})\\.`, 'gi'), tandai)
+
+  const kalimat = aman.match(/^[\s\S]*?[.!?](?=\s|$)/)
+  let judul = ''
+  for (const bagian of aman.split(/(?<=[.!?])(?=\s)/)) {
+    judul += bagian
+    if (judul.trim().length >= MIN_JUDUL) break
+  }
+  judul = judul.replace(/\u0000(\d+)\u0000/g, (_, i) => simpan[Number(i)]).trim()
+
+  if (judul.length > 200) judul = `${judul.slice(0, 197).replace(/\s+\S*$/, '')}…`
+  return { judul: judul.length >= 15 ? judul : '', teksRelevansi }
+}
+
+async function ambilJson(url, timeoutMs = 12000) {
+  const c = new AbortController()
+  const t = setTimeout(() => c.abort(), timeoutMs)
+  try {
+    const r = await fetch(url, {
+      signal: c.signal,
+      headers: { 'user-agent': UA, accept: 'application/json' },
+    })
+    const j = await r.json().catch(() => null)
+    // Badan error Graph jauh lebih informatif daripada kode HTTP-nya —
+    // "token kedaluwarsa" dan "izin kurang" sama-sama HTTP 400.
+    if (!r.ok) return { gagal: j?.error?.message ? `${j.error.message} (kode ${j.error.code})` : `HTTP ${r.status}` }
+    return { data: j }
+  } catch (e) {
+    return { gagal: e.name === 'AbortError' ? 'timeout' : e.message }
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+// Akun SENDIRI, jadi lewat /{ig-user-id}/media — bukan business_discovery.
+// Token & id akun dari env, tidak pernah dari data sumber, supaya baris DB
+// yang disunting orang tidak bisa mengarahkan permintaan ke tempat lain.
+export async function tarikInstagram(sumber, keyword = KEYWORD_BAWAAN) {
+  const igUserId = process.env.IG_USER_ID
+  const token = process.env.IG_ACCESS_TOKEN
+  if (!igUserId || !token) {
+    return { kandidat: [], status: 'gagal: IG_USER_ID / IG_ACCESS_TOKEN belum diisi' }
+  }
+  if (!/^\d{5,30}$/.test(igUserId)) {
+    return { kandidat: [], status: 'gagal: IG_USER_ID bukan angka' }
+  }
+
+  const akun = String(sumber.alamat ?? '').trim().replace(/^@/, '')
+  if (!/^[a-zA-Z0-9._]{1,30}$/.test(akun)) {
+    return { kandidat: [], status: 'gagal: nama akun tidak valid' }
+  }
+
+  const fields = 'id,caption,permalink,media_type,timestamp,like_count,comments_count'
+  const alamat =
+    `https://graph.facebook.com/${GRAPH_VERSI}/${igUserId}/media` +
+    `?fields=${encodeURIComponent(fields)}&limit=${BATAS_IG}` +
+    `&access_token=${encodeURIComponent(token)}`
+
+  const { data, gagal } = await ambilJson(alamat)
+  if (gagal) return { kandidat: [], status: `gagal: ${gagal}` }
+
+  const media = Array.isArray(data?.data) ? data.data : []
+  if (media.length === 0) return { kandidat: [], status: 'ok: 0 item' }
+
+  return petakanMediaIg(media, `@${akun}`, sumber, keyword)
+}
+
+// Business Discovery: akun ORANG LAIN. Endpoint-nya bercabang dari node akun
+// sendiri, jadi IG_USER_ID tetap dipakai — username target masuk sebagai
+// parameter di dalam field expansion.
+export async function tarikInstagramDiscovery(sumber, keyword = KEYWORD_BAWAAN) {
+  const igUserId = process.env.IG_USER_ID
+  const token = process.env.IG_ACCESS_TOKEN
+  if (!igUserId || !token) {
+    return { kandidat: [], status: 'gagal: IG_USER_ID / IG_ACCESS_TOKEN belum diisi' }
+  }
+  if (!/^\d{5,30}$/.test(igUserId)) {
+    return { kandidat: [], status: 'gagal: IG_USER_ID bukan angka' }
+  }
+
+  // Username masuk ke dalam string field, BUKAN sebagai query param — jadi
+  // encodeURIComponent tidak melindungi apa pun di sini. Whitelist wajib.
+  const akun = String(sumber.alamat ?? '').trim().replace(/^@/, '')
+  if (!/^[a-zA-Z0-9._]{1,30}$/.test(akun)) {
+    return { kandidat: [], status: 'gagal: nama akun tidak valid' }
+  }
+
+  const isiMedia = 'id,caption,permalink,media_type,timestamp,like_count,comments_count'
+  const fields = `business_discovery.username(${akun}){username,media.limit(${BATAS_IG}){${isiMedia}}}`
+  const alamat =
+    `https://graph.facebook.com/${GRAPH_VERSI}/${igUserId}` +
+    `?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`
+
+  const { data, gagal } = await ambilJson(alamat)
+  if (gagal) return { kandidat: [], status: `gagal: ${gagal}` }
+
+  const bd = data?.business_discovery
+  if (!bd) return { kandidat: [], status: 'gagal: akun tidak ditemukan / bukan akun bisnis' }
+
+  const media = Array.isArray(bd.media?.data) ? bd.media.data : []
+  if (media.length === 0) return { kandidat: [], status: 'ok: 0 item' }
+
+  return petakanMediaIg(media, `@${bd.username ?? akun}`, sumber, keyword)
+}
+
+// Dipakai jalur akun sendiri MAUPUN Business Discovery — bentuk media-nya sama.
+function petakanMediaIg(media, namaAkun, sumber, keyword) {
+  const kandidat = []
+  let dibuang = 0
+
+  for (const m of media) {
+    if (!m?.permalink || !m?.id) { dibuang++; continue }
+
+    let p
+    try { p = new URL(m.permalink) } catch { dibuang++; continue }
+    if (p.protocol !== 'https:' || safeHost(m.permalink) !== 'instagram.com') { dibuang++; continue }
+
+    const { judul, teksRelevansi } = bersihkanCaption(m.caption)
+
+    if (sumber.wajibKeyword !== false) {
+      if (!relevanBanyuwangi(teksRelevansi, null, keyword)) { dibuang++; continue }
+    } else if (daerahLain(teksRelevansi, null)) {
+      dibuang++
+      continue
+    }
+
+    const terbitAt = m.timestamp ? new Date(m.timestamp) : null
+    const tglWib = terbitAt
+      ? terbitAt.toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' })
+      : 'tanpa tanggal'
+
+    kandidat.push({
+      judul: (judul || `[Tanpa teks] ${namaAkun} · ${tglWib}`).slice(0, 500),
+      url: m.permalink.replace(/\/+$/, ''),
+      urlAsli: m.permalink.replace(/\/+$/, ''),
+      googleId: null,
+      terbitAt,
+      sumberNama: namaAkun.slice(0, 120),
+      kunciUnik: `ig:${m.id}`,
+    })
+  }
+
+  const catatan = dibuang ? `, ${dibuang} tersaring` : ''
+  return { kandidat, status: `ok: ${kandidat.length} item${catatan}` }
+}
+
 export async function tarikSatuSumber(sumber, keyword = KEYWORD_BAWAAN) {
+  if (sumber.jenis === 'IG') return tarikInstagram(sumber, keyword)
+  if (sumber.jenis === 'IGBD') return tarikInstagramDiscovery(sumber, keyword)
   const alamat = sumber.jenis === 'GNEWS' ? bangunUrlGnews(sumber.alamat) : sumber.alamat
   const { teks, gagal } = await ambilTeks(alamat)
   if (gagal) return { kandidat: [], status: `gagal: ${gagal}` }

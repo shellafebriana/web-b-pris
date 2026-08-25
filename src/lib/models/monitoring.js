@@ -700,7 +700,7 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
   const sumber = await prisma.monitoringSumber.findMany({
     where: {
       isActive: true,
-      jenis: { in: ['RSS', 'GNEWS'] },
+      jenis: { in: ['RSS', 'GNEWS','IG','IGBD'] },
       ...(sumberId ? { id: BigInt(sumberId) } : {}),
     },
     take: sumberId ? 1 : batasSumber,
@@ -728,7 +728,9 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
       status = st
 
       for (const k of kandidat) {
-        const judulHash = judulHashDari(k.sumberNama, k.judul)
+        const judulHash = k.kunciUnik
+          ? crypto.createHash('sha256').update(k.kunciUnik).digest('hex')
+          : judulHashDari(k.sumberNama, k.judul)
 
         // Kalau URL aslinya sudah diketahui, cek juga apakah sudah pernah
         // masuk laporan. Untuk Google News tanpa urlAsli, dedup pakai judul.
@@ -852,7 +854,7 @@ export async function ambilKandidat(sesiId, daftarId, petaKategori = {}) {
 // permintaan pendek dan tidak kena batas waktu serverless.
 export async function getSumberAktif() {
   const rows = await prisma.monitoringSumber.findMany({
-    where: { isActive: true, jenis: { in: ['RSS', 'GNEWS'] } },
+    where: { isActive: true, jenis: { in: ['RSS', 'GNEWS','IG','IGBD'] } },
     orderBy: [{ jenis: 'asc' }, { nama: 'asc' }],
     select: { id: true, nama: true, jenis: true },
   })
