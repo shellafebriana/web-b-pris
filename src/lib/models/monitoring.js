@@ -870,7 +870,7 @@ export async function getKandidat({ page = 1, limit = 25, kanal = null } = {}) {
       where, skip, take: limit,
       orderBy: [{ terbitAt: 'desc' }, { id: 'desc' }],
       select: {
-        id: true, judul: true, url: true, terbitAt: true, kanal: true,
+        id: true, judul: true, url: true, urlAsli: true, terbitAt: true, kanal: true,
         sumberNama: true, saranKode: true, confidence: true,
         sumber: { select: { jenis: true, nama: true } },
       },

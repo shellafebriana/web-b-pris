@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
@@ -51,38 +51,39 @@ model RekapSession {
   state       String       @default("draft")
   totalLinks  Int          @default(0)
   summaryJson Json?
-  contentDate DateTime?   
   createdAt   DateTime     @default(now())
   completedAt DateTime?
+  contentDate DateTime?
   links       Link[]
   format      ReportFormat @relation(fields: [formatId], references: [id])
   operator    Operator     @relation(fields: [operatorId], references: [id])
 
+  @@unique([formatId, title(length: 191)])
   @@index([formatId], map: "RekapSession_formatId_fkey")
   @@index([operatorId], map: "RekapSession_operatorId_fkey")
-  @@unique([formatId, title(length: 191)])
   @@index([formatId, contentDate])
 }
 
 model Platform {
-  id     BigInt @id @default(autoincrement())
-  name   String @unique    
-  domain Json?
-  category String @default("online") // "sosmed" | "online"
-  links  Link[]
-  shortName String?   
-  sortOrder Int    @default(99)
+  id        BigInt  @id @default(autoincrement())
+  name      String  @unique
+  domain    Json?
+  category  String  @default("online")
+  shortName String?
+  sortOrder Int     @default(99)
+  links     Link[]
 }
 
 model Unit {
-  id    BigInt @id @default(autoincrement())
-  name  String @unique
-  type  String
-  links Link[]
-  domains Json?
-  aliases Json?
-  rilisSubmissions RilisSubmission[]
+  id                BigInt                   @id @default(autoincrement())
+  name              String                   @unique
+  type              String
+  domains           Json?
+  rayon             Int?
+  aliases           Json?
   interaksiStatuses AnggotaInteraksiStatus[]
+  links             Link[]
+  rilisSubmissions  RilisSubmission[]
 }
 
 model Link {
@@ -96,13 +97,12 @@ model Link {
   platform   Platform     @relation(fields: [platformId], references: [id])
   session    RekapSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   unit       Unit?        @relation(fields: [unitId], references: [id])
+
   @@index([url(length: 191)])
-
-
   @@index([platformId], map: "Link_platformId_fkey")
   @@index([sessionId], map: "Link_sessionId_fkey")
   @@index([unitId], map: "Link_unitId_fkey")
-  @@index([sessionId, unitId, platformId]) 
+  @@index([sessionId, unitId, platformId])
 }
 
 model User {
@@ -135,13 +135,13 @@ model CustomDocument {
 model RilisSubmission {
   id          BigInt   @id @default(autoincrement())
   unitId      BigInt
-  unit        Unit     @relation(fields: [unitId], references: [id])
-  contentDate DateTime          // tengah malam WIB, granularitas hari
+  contentDate DateTime
   rayon       Int?
-  metode String? @db.VarChar(10)  // header | judul | pengirim | manual
   pengirim    String?  @db.VarChar(255)
-  fingerprint String   @unique @db.VarChar(64)   // sha256 hex
+  fingerprint String   @unique @db.VarChar(64)
   createdAt   DateTime @default(now())
+  metode      String?  @db.VarChar(10)
+  unit        Unit     @relation(fields: [unitId], references: [id])
 
   @@index([unitId, contentDate])
   @@index([contentDate])
@@ -150,72 +150,63 @@ model RilisSubmission {
 model AnggotaInteraksiStatus {
   id         BigInt   @id @default(autoincrement())
   unitId     BigInt
-  unit       Unit     @relation(fields: [unitId], references: [id])
-  periode    String   @db.VarChar(7)    // "2026-08"
-  status     String   @db.VarChar(10)   // BELUM | SUDAH | TERLAMBAT
+  periode    String   @db.VarChar(7)
+  status     String   @db.VarChar(10)
   linkDrive  String?  @db.Text
   keterangan String?  @db.VarChar(255)
   updatedAt  DateTime @updatedAt
+  unit       Unit     @relation(fields: [unitId], references: [id])
 
   @@unique([unitId, periode])
   @@index([periode])
 }
 
-// =====================================================================
-// MONITORING MEDIA ONLINE & MEDIA SOSIAL
-// =====================================================================
-
 model MonitoringKategori {
-  id        BigInt   @id @default(autoincrement())
-  kode      String   @unique @db.VarChar(40)   // POSITIF_POLRI, PROVOKASI, ...
-  nama      String   @db.VarChar(120)          // teks yang dicetak di laporan
-  aliases   Json?                              // variasi ejaan/typo saat import
-  sortOrder Int                                // 1..11, urutan cetak di laporan
-  sentimen  String   @db.VarChar(10)           // POSITIF | NEGATIF | NETRAL
-  subjek    String   @db.VarChar(12)           // POLRI | PEMERINTAH | UMUM
-  isActive  Boolean  @default(true)
-
-  items MonitoringItem[]
-  rules MonitoringRule[]
+  id        BigInt           @id @default(autoincrement())
+  kode      String           @unique @db.VarChar(40)
+  nama      String           @db.VarChar(120)
+  aliases   Json?
+  sortOrder Int
+  sentimen  String           @db.VarChar(10)
+  subjek    String           @db.VarChar(12)
+  isActive  Boolean          @default(true)
+  items     MonitoringItem[]
+  rules     MonitoringRule[]
 
   @@index([sortOrder])
 }
 
 model MonitoringSesi {
-  id          String    @id @default(uuid())
-  contentDate DateTime                         // tengah malam WIB
-  state       String    @default("draft") @db.VarChar(10)  // draft | final
-  totalOnline Int       @default(0)
-  totalSosmed Int       @default(0)
-  summaryJson Json?                            // snapshot count per kategori
-  createdAt   DateTime  @default(now())
+  id          String           @id @default(uuid())
+  contentDate DateTime         @unique
+  state       String           @default("draft") @db.VarChar(10)
+  totalOnline Int              @default(0)
+  totalSosmed Int              @default(0)
+  summaryJson Json?
+  createdAt   DateTime         @default(now())
   finalizedAt DateTime?
-
-  items MonitoringItem[]
-
-  @@unique([contentDate])
+  items       MonitoringItem[]
 }
 
 model MonitoringItem {
-  id          BigInt   @id @default(autoincrement())
+  id          BigInt             @id @default(autoincrement())
   sesiId      String
-  kanal       String   @db.VarChar(8)          // ONLINE | SOSMED
+  kanal       String             @db.VarChar(8)
   kategoriId  BigInt
-  judul       String   @db.Text
-  url         String   @db.Text
-  urlHash     String   @db.VarChar(64)         // sha256 dari url ternormalisasi
-  sumber      String?  @db.VarChar(120)        // hostname atau @akun
-  platformId  BigInt?                          // sengaja tanpa relasi, lihat catatan
-  isuId       BigInt?                          // hasil klaster isu, nullable
-  sumberInput String   @db.VarChar(10)         // MANUAL | PASTE | IMPORT | CRAWLER
-  confidence  Int?                             // 0-100 skor auto-klasifikasi
-  isReviewed  Boolean  @default(false)
-  urutan      Int      @default(0)
-  createdAt   DateTime @default(now())
-
-  sesi     MonitoringSesi     @relation(fields: [sesiId], references: [id], onDelete: Cascade)
-  kategori MonitoringKategori @relation(fields: [kategoriId], references: [id])
-  isu      MonitoringIsu?     @relation(fields: [isuId], references: [id], onDelete: SetNull)
+  judul       String             @db.Text
+  url         String             @db.Text
+  urlHash     String             @db.VarChar(64)
+  sumber      String?            @db.VarChar(120)
+  platformId  BigInt?
+  isuId       BigInt?
+  sumberInput String             @db.VarChar(10)
+  confidence  Int?
+  isReviewed  Boolean            @default(false)
+  urutan      Int                @default(0)
+  createdAt   DateTime           @default(now())
+  isu         MonitoringIsu?     @relation(fields: [isuId], references: [id])
+  kategori    MonitoringKategori @relation(fields: [kategoriId], references: [id])
+  sesi        MonitoringSesi     @relation(fields: [sesiId], references: [id], onDelete: Cascade)
 
   @@unique([sesiId, urlHash])
   @@index([sesiId, kanal, kategoriId])
@@ -226,75 +217,70 @@ model MonitoringItem {
 }
 
 model MonitoringIsu {
-  id            BigInt   @id @default(autoincrement())
-  judul         String   @db.Text              // diambil dari item pertama
-  tokenJson     Json                           // token judul, buat cocokkan lintas hari
-  firstDate     DateTime                       // tengah malam WIB
+  id            BigInt           @id @default(autoincrement())
+  judul         String           @db.Text
+  tokenJson     Json
+  firstDate     DateTime
   lastDate      DateTime
-  totalItem     Int      @default(0)
-  totalOnline   Int      @default(0)
-  totalSosmed   Int      @default(0)
-  kategoriCount Int      @default(1)           // >1 berarti framing terbelah
-  hitungPerHari Json?                          // { "2026-05-19": 2, ... }
-  skor          Int      @default(0)
-  updatedAt     DateTime @updatedAt
-
-  items MonitoringItem[]
+  totalItem     Int              @default(0)
+  totalOnline   Int              @default(0)
+  totalSosmed   Int              @default(0)
+  kategoriCount Int              @default(1)
+  hitungPerHari Json?
+  skor          Int              @default(0)
+  updatedAt     DateTime         @updatedAt
+  items         MonitoringItem[]
 
   @@index([lastDate, skor])
   @@index([firstDate])
 }
 
 model MonitoringRule {
-  id         BigInt  @id @default(autoincrement())
-  keyword    String  @db.VarChar(80)
+  id         BigInt             @id @default(autoincrement())
+  keyword    String             @db.VarChar(80)
   kategoriId BigInt
-  kanal      String? @db.VarChar(8)            // null = berlaku dua kanal
-  bobot      Int     @default(10)
-  isActive   Boolean @default(true)
-
-  kategori MonitoringKategori @relation(fields: [kategoriId], references: [id])
+  kanal      String?            @db.VarChar(8)
+  bobot      Int                @default(10)
+  isActive   Boolean            @default(true)
+  kategori   MonitoringKategori @relation(fields: [kategoriId], references: [id])
 
   @@index([kategoriId])
   @@index([isActive])
 }
 
 model MonitoringSumber {
-  id         BigInt    @id @default(autoincrement())
-  nama       String    @db.VarChar(120)
-  jenis      String    @db.VarChar(12)         // RSS | GNEWS | IG
-  alamat     String    @db.Text                // url feed, query, atau username
-  domain     String?   @db.VarChar(120)
-  isActive   Boolean   @default(true)
-  wajibKeyword Boolean @default(true)
-  lastRunAt  DateTime?
-  lastStatus String?   @db.VarChar(200)
-
-  kandidat MonitoringKandidat[]
+  id           BigInt               @id @default(autoincrement())
+  nama         String               @db.VarChar(120)
+  jenis        String               @db.VarChar(12)
+  alamat       String               @db.Text
+  domain       String?              @db.VarChar(120)
+  isActive     Boolean              @default(true)
+  lastRunAt    DateTime?
+  lastStatus   String?              @db.VarChar(200)
+  wajibKeyword Boolean              @default(true)
+  kandidat     MonitoringKandidat[]
 
   @@index([isActive, jenis])
 }
 
 model MonitoringKandidat {
-  id         BigInt    @id @default(autoincrement())
+  id         BigInt           @id @default(autoincrement())
   sumberId   BigInt
-  judul      String    @db.Text
-  url        String    @db.Text
-  urlHash    String    @db.VarChar(64)          
-  judulHash  String    @db.VarChar(64)          
-  googleId   String?   @db.VarChar(64)   // sha256 dari id artikel, bukan id mentah        
-  urlAsli    String?   @db.Text                 
+  judul      String           @db.Text
+  url        String           @db.Text
+  urlHash    String           @db.VarChar(64)
   terbitAt   DateTime?
-  kanal      String    @db.VarChar(8)          // ONLINE | SOSMED
-  sumberNama String?   @db.VarChar(120)        // hostname hasil resolve
-  saranKode  String?   @db.VarChar(40)         // kode kategori hasil rule
+  kanal      String           @db.VarChar(8)
+  sumberNama String?          @db.VarChar(120)
+  saranKode  String?          @db.VarChar(40)
   confidence Int?
-  status     String    @default("baru") @db.VarChar(10)  // baru | diambil | ditolak
-  createdAt  DateTime  @default(now())
+  status     String           @default("baru") @db.VarChar(10)
+  createdAt  DateTime         @default(now())
+  googleId   String?          @db.VarChar(400)
+  judulHash  String           @unique @db.VarChar(64)
+  urlAsli    String?          @db.Text
+  sumber     MonitoringSumber @relation(fields: [sumberId], references: [id], onDelete: Cascade)
 
-  sumber MonitoringSumber @relation(fields: [sumberId], references: [id], onDelete: Cascade)
-
-  @@unique([judulHash])
   @@index([status, terbitAt])
   @@index([sumberId])
   @@index([urlHash])
@@ -303,7 +289,7 @@ model MonitoringKandidat {
 model MonitoringDomain {
   id          BigInt   @id @default(autoincrement())
   domain      String   @unique @db.VarChar(120)
-  kanal       String   @db.VarChar(8)          // ONLINE | SOSMED
+  kanal       String   @db.VarChar(8)
   firstSeenAt DateTime @default(now())
   lastSeenAt  DateTime @default(now())
   totalItem   Int      @default(0)
@@ -315,7 +301,7 @@ model MonitoringDomain {
 
 model MonitoringResolveCache {
   id        BigInt   @id @default(autoincrement())
-  googleId  String   @unique @db.VarChar(64)
+  googleId  String   @unique @db.VarChar(400)
   urlAsli   String   @db.Text
   createdAt DateTime @default(now())
 

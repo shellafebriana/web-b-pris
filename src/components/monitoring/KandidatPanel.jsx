@@ -256,7 +256,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
                       )}
                       <span className="text-gray-300 dark:text-gray-600">·</span>
                       <span className="text-gray-400 dark:text-gray-500">
-                        {k.jenisSumber === 'GNEWS' ? 'Google News' : 'RSS'}
+                        {{ GNEWS: 'Google News', IG: 'Instagram', IGBD: 'Instagram' }[k.jenisSumber] ?? 'RSS'}
                         {k.terbitAt ? ` · ${jamWib(k.terbitAt)}` : ''}
                       </span>
                       {k.domainBaru ? (

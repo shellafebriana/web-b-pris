@@ -215,7 +215,7 @@ const SINGKATAN_TITIK = [
   'Tgl', 'Rp', 'km', 'kg', 'ha', 'dll', 'dsb', 'dst', 'hlm', 'Tbk',
 ]
 // Judul sependek "BREAKING!!" tidak berguna buat operator.
-const MIN_JUDUL = 25
+const MIN_JUDUL = 160
 
 // Caption IG bukan judul berita: multi-paragraf, ditutup blok hashtag,
 // kadang beremoji. Dipecah jadi dua keluaran karena kebutuhannya berbeda —
@@ -256,7 +256,7 @@ export function bersihkanCaption(caption) {
   }
   judul = judul.replace(/\u0000(\d+)\u0000/g, (_, i) => simpan[Number(i)]).trim()
 
-  if (judul.length > 200) judul = `${judul.slice(0, 197).replace(/\s+\S*$/, '')}…`
+  if (judul.length > 320) judul = `${judul.slice(0, 317).replace(/\s+\S*$/, '')}…`
   return { judul: judul.length >= 15 ? judul : '', teksRelevansi }
 }
 

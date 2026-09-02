@@ -7,12 +7,21 @@ import { rakitMatriks } from '@/lib/models/laporan'
  * Beda dari Media Online: tanggal nempel langsung di baris (contentDate),
  * jadi tidak perlu lewat sesi. groupBy paling banyak 26 unit x 31 hari.
  */
-export async function getRekapKontenRayon({ periode, unitType = 'POLSEK' }) {
+export async function getRekapKontenRayon({
+  periode,
+  unitType = 'POLSEK',
+  hanyaIkutRayon = true,
+}) {
   const columns = buildBuckets(periode)
 
   const [units, grouped] = await Promise.all([
     prisma.unit.findMany({
-      where: { type: unitType },
+      // Polsek tanpa rayon (mis. Satpolairud) tidak punya grup untuk mengirim,
+      // jadi barisnya nol terus dan cuma bikin salah baca.
+      where: {
+        type: unitType,
+        ...(hanyaIkutRayon ? { rayon: { not: null } } : {}),
+      },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     }),
