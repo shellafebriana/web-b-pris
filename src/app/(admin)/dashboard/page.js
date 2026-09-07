@@ -13,7 +13,7 @@ import UnitRankingTable from '@/components/dashboard/UnitRankingTable'
 import PlatformRankingTable from '@/components/dashboard/PlatformRankingTable'
 
 // Whitelist: jangan percaya nilai dari URL, hanya terima yang terdaftar.
-const ISU_HARI_VALID = [1, 7, 30]
+const ISU_HARI_VALID = [7, 30]
 
 export default async function Dashboard({ searchParams }) {
   const user = await getAuthUser()

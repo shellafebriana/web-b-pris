@@ -67,7 +67,6 @@ export async function getRingkasanHariIni() {
           where: {
             sesiId: sesi.id,
             isReviewed: false,
-            OR: [{ confidence: null }, { confidence: { lt: ambang } }],
           },
         })
       : Promise.resolve(0),
@@ -474,6 +473,7 @@ export async function tambahItemMonitoring(sesiId, daftar, { sumberInput = 'MANU
   let urutan = (terakhir?.urutan ?? -1) + 1
 
   const hasil = { masuk: 0, duplikat: 0, gagal: [] }
+  const siap = []
 
   for (const baris of daftar) {
     const url = normalizeUrlMonitoring(baris.url ?? '')
@@ -503,28 +503,60 @@ export async function tambahItemMonitoring(sesiId, daftar, { sumberInput = 'MANU
         : idDefault
     }
 
-    try {
-      await prisma.monitoringItem.create({
-        data: {
-          sesiId: sesi.id, kanal, kategoriId, judul, url,
-          urlHash: hashUrl(url), sumber: sumber?.slice(0, 120) ?? null, platformId,
-          sumberInput, confidence,
-          isReviewed: Boolean(dipilih),
-          urutan: urutan++,
-        },
-      })
-      hasil.masuk++
+    siap.push({
+      sesiId: sesi.id, kanal, kategoriId, judul, url,
+      urlHash: hashUrl(url), sumber: sumber?.slice(0, 120) ?? null, platformId,
+      sumberInput, confidence,
+      isReviewed: Boolean(dipilih),
+      urutan: urutan++,
+    })
+  }
 
-      if (sumber) {
+  // Ditulis borongan, bukan per baris. Sebelumnya 2 round trip × jumlah baris
+  // membuat 25 kandidat menembus batas 10 detik Vercel — datanya masuk, tapi
+  // respons tidak pernah kembali dan revalidatePath tidak jalan.
+  if (siap.length > 0) {
+    const sudahAda = new Set(
+      (
+        await prisma.monitoringItem.findMany({
+          where: { sesiId: sesi.id, urlHash: { in: siap.map((s) => s.urlHash) } },
+          select: { urlHash: true },
+        })
+      ).map((r) => r.urlHash)
+    )
+
+    // Duplikat disaring di sini supaya hitungan domain hanya menghitung
+    // baris yang benar-benar masuk.
+    const baru = []
+    const terlihat = new Set()
+    for (const s of siap) {
+      if (sudahAda.has(s.urlHash) || terlihat.has(s.urlHash)) { hasil.duplikat++; continue }
+      terlihat.add(s.urlHash)
+      baru.push(s)
+    }
+
+    if (baru.length > 0) {
+      const { count } = await prisma.monitoringItem.createMany({
+        data: baru,
+        skipDuplicates: true,
+      })
+      hasil.masuk = count
+      hasil.duplikat += baru.length - count
+
+      const perDomain = new Map()
+      for (const b of baru) {
+        if (!b.sumber) continue
+        const lama = perDomain.get(b.sumber)
+        perDomain.set(b.sumber, { kanal: b.kanal, n: (lama?.n ?? 0) + 1 })
+      }
+      // Upsert berurutan per domain unik — 25 baris biasanya cuma 5–10 domain.
+      for (const [domain, { kanal, n }] of perDomain) {
         await prisma.monitoringDomain.upsert({
-          where: { domain: sumber },
-          update: { lastSeenAt: new Date(), totalItem: { increment: 1 } },
-          create: { domain: sumber, kanal, totalItem: 1 },
+          where: { domain },
+          update: { lastSeenAt: new Date(), totalItem: { increment: n } },
+          create: { domain, kanal, totalItem: n },
         })
       }
-    } catch (e) {
-      if (e.code === 'P2002') hasil.duplikat++
-      else throw e
     }
   }
 
@@ -557,6 +589,13 @@ export async function ubahStateSesi(sesiId, state) {
     where: { id: String(sesiId) },
     data: { state, finalizedAt: state === 'final' ? new Date() : null },
   })
+
+  if (state === 'final') {
+    await prisma.monitoringItem.updateMany({
+      where: { sesiId: String(sesiId), isReviewed: false },
+      data: { isReviewed: true },
+    })
+  }
 }
 
 

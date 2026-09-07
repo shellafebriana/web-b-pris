@@ -36,15 +36,12 @@ const MonitoringCard = ({ data }) => {
       id: 'online',
       title: 'Monitoring Media Online Hari Ini',
       nilai: formatNumber(d.totalOnline ?? 0),
-      catatan:
-        d.antreanBaru > 0 ? `dari ${formatNumber(d.antreanBaru)} kandidat` : 'input manual',
       icon: 'GlobeIcon',
     },
     {
       id: 'sosmed',
       title: 'Monitoring Media Sosial Hari Ini',
       nilai: formatNumber(d.totalSosmed ?? 0),
-      catatan: 'input manual',
       icon: 'MobilePhoneIcon',
     },
     {

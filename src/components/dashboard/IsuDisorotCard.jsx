@@ -5,7 +5,6 @@ import Link from 'next/link'
 // walau JS belum turun.
 
 const PILIHAN = [
-  { hari: 1, label: 'Hari ini' },
   { hari: 7, label: '7 hari' },
   { hari: 30, label: '30 hari' },
 ]
@@ -49,13 +48,11 @@ function BarKanal({ online, sosmed }) {
 
 function kalimatRingkas(daftar, hariAktif) {
   if (daftar.length === 0) return null
-  const periode =
-    hariAktif === 1 ? 'Hari ini' : `Dalam ${hariAktif} hari terakhir`
   const teratas = daftar[0]
 
   return (
     <>
-      {periode === 'Hari ini' ? 'Hari ini' : periode} ada <Tebal>{daftar.length} peristiwa</Tebal>{' '}
+      Dalam {hariAktif} hari terakhir ada <Tebal>{daftar.length} peristiwa</Tebal>{' '}
       yang diberitakan lebih dari satu media. Yang paling banyak diliput{' '}
       <Tebal>{teratas.totalItem} media</Tebal>.
     </>

@@ -196,7 +196,7 @@ export function bersihkanJudul(judul, host) {
 }
 
 export function bangunUrlGnews(query) {
-  const q = encodeURIComponent(`${query} when:1d`)
+  const q = encodeURIComponent(`${query} when:2d`)
   return `https://news.google.com/rss/search?q=${q}&hl=id&gl=ID&ceid=ID:id`
 }
 
