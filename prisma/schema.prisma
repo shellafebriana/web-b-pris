@@ -276,7 +276,7 @@ model MonitoringKandidat {
   confidence Int?
   status     String           @default("baru") @db.VarChar(10)
   createdAt  DateTime         @default(now())
-  googleId   String?          @db.VarChar(400)
+  googleId   String?          @db.Text
   judulHash  String           @unique @db.VarChar(64)
   urlAsli    String?          @db.Text
   sumber     MonitoringSumber @relation(fields: [sumberId], references: [id], onDelete: Cascade)

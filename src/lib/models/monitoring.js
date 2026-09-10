@@ -345,7 +345,7 @@ export function isUrlAman(u) {
     return false
   }
 }
-
+const cacheKeyGoogle = (id) => crypto.createHash('sha256').update(String(id)).digest('hex')
 const hashUrl = (u) => crypto.createHash('sha256').update(normalizeUrlMonitoring(u)).digest('hex')
 const hostUrl = (u) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return null } }
 
@@ -762,6 +762,8 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
 
   for (const s of sumber) {
     let status = 'ok'
+    let gagal = 0
+    let pesanGagal = null
     try {
       const { kandidat, status: st } = await tarikSatuSumber(s, keyword)
       status = st
@@ -804,9 +806,13 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
           baru++
         } catch (e) {
           if (e.code === 'P2002') duplikat++
-          else throw e
+          else {
+            gagal++
+            pesanGagal ??= e.message
+          }
         }
       }
+      if (gagal) status += `, ${gagal} gagal (${String(pesanGagal).slice(0, 80)})`
     } catch (e) {
       status = `error: ${e.message}`.slice(0, 200)
     }
@@ -838,11 +844,11 @@ export async function ambilKandidat(sesiId, daftarId, petaKategori = {}) {
   const perluResolve = rows.filter((r) => !r.urlAsli && r.googleId)
   const cache = perluResolve.length
     ? await prisma.monitoringResolveCache.findMany({
-        where: { googleId: { in: perluResolve.map((r) => r.googleId) } },
+        where: { googleId: { in: perluResolve.map((r) => cacheKeyGoogle(r.googleId)) } },
         select: { googleId: true, urlAsli: true },
       })
     : []
-  const petaCache = new Map(cache.map((c) => [c.googleId, c.urlAsli]))
+   const petaCache = new Map(cache.map((c) => [c.googleId, c.urlAsli])) 
 
   const kategori = await prisma.monitoringKategori.findMany({ select: { id: true, kode: true } })
   const petaKode = new Map(kategori.map((k) => [k.kode, k.id]))
@@ -851,15 +857,15 @@ export async function ambilKandidat(sesiId, daftarId, petaKategori = {}) {
   const gagalResolve = []
 
   for (const r of rows) {
-    let url = r.urlAsli ?? petaCache.get(r.googleId) ?? null
+    let url = r.urlAsli ?? petaCache.get(cacheKeyGoogle(r.googleId)) ?? null
 
     if (!url && r.googleId) {
       url = await resolveUrl(r.url, null, `https://${r.sumberNama}`)
       if (url) {
         await prisma.monitoringResolveCache.upsert({
-          where: { googleId: r.googleId },
+          where: { googleId: cacheKeyGoogle(r.googleId) },
           update: { urlAsli: url },
-          create: { googleId: r.googleId, urlAsli: url },
+          create: { googleId: cacheKeyGoogle(r.googleId), urlAsli: url },
         })
       }
     }
