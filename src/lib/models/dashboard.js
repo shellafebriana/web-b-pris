@@ -1,5 +1,10 @@
 import prisma from '@/lib/prisma'
 import { getMonthRange, getDayRange } from '@/lib/date-helpers'
+import { parsePeriode } from '@/lib/laporan/periode'
+import {
+  getRekapMediaOnline,
+  FORMAT_MEDIA_ONLINE,
+} from '@/lib/models/laporan'
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
 
@@ -133,31 +138,32 @@ export async function getUnitRankingSocial() {
   return getUnitRankingByFormat('format1')
 }
 
-// Ranking Media Online — sama polanya, format13
+// Ranking Media Online 
 export async function getUnitRankingOnline() {
-  return getUnitRankingByFormat('format16')
-}
+  const { indonesiaTime } = getMonthRange()
 
-export async function getPlatformRanking(formatIds) {
-  const { startOfMonth, endOfMonth } = getMonthRange()
+  const year = indonesiaTime.getUTCFullYear()
+  const month = String(indonesiaTime.getUTCMonth() + 1).padStart(2, '0')
 
-  const platforms = await prisma.platform.findMany({
-    where: { category: 'sosmed' },
-    include: {
-      _count: {
-        select: {
-          links: {
-            where: { session: { createdAt: { gte: startOfMonth, lte: endOfMonth }, formatId: { in: formatIds } } }
-          }
-        }
-      }
-    }
+  const periode = parsePeriode({
+    mode: 'bulanan',
+    periode: `${year}-${month}`,
   })
 
-  return platforms
-    .sort((a, b) => b._count.links - a._count.links)
-    .map((platform, index) => ({ no: index + 1, namaPlatform: platform.name, jumlahLink: platform._count.links }))
+  const data = await getRekapMediaOnline({
+    formatIds: [FORMAT_MEDIA_ONLINE],
+    periode,
+    unitType: 'POLSEK',
+    hanyaPunyaDomain: true,
+  })
+
+  return data.rows.map((row, index) => ({
+    no: index + 1,
+    namaUnit: row.name,
+    jumlahLink: row.total,
+  }))
 }
+
 
 export async function getDashboardOverview() {
   const formatIds = await getActiveFormatIds()
@@ -165,11 +171,10 @@ export async function getDashboardOverview() {
   const month = indonesiaTime.getUTCMonth()
   const year = indonesiaTime.getUTCFullYear()
 
-  const [stats, unitRankingSocial, unitRankingOnline, platformRanking, grouped] = await Promise.all([
+  const [stats, unitRankingSocial, unitRankingOnline, grouped] = await Promise.all([
     getTodayStats(formatIds),
     getUnitRankingSocial(),
     getUnitRankingOnline(),
-    getPlatformRanking(formatIds),
     getUniqueLinkGroupedByDate(formatIds),
   ])
 
@@ -177,7 +182,6 @@ export async function getDashboardOverview() {
     stats,
     unitRankingSocial,
     unitRankingOnline,
-    platformRanking,
     heatmap: buildHeatmap(grouped),
     weeklyTrend: buildWeeklyTrend(grouped, month, year),
   }

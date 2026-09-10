@@ -10,7 +10,6 @@ import SentimenPolriCard from '@/components/dashboard/SentimenPolriCard'
 import HeatmapChart from '@/components/dashboard/HeatmapChart'
 import WeeklyTrendChart from '@/components/dashboard/WeeklyTrendChart'
 import UnitRankingTable from '@/components/dashboard/UnitRankingTable'
-import PlatformRankingTable from '@/components/dashboard/PlatformRankingTable'
 
 // Whitelist: jangan percaya nilai dari URL, hanya terima yang terdaftar.
 const ISU_HARI_VALID = [7, 30]
@@ -26,7 +25,7 @@ export default async function Dashboard({ searchParams }) {
   const isuHari = ISU_HARI_VALID.includes(isuHariRaw) ? isuHariRaw : 7
 
   const [
-    { stats, unitRankingSocial, unitRankingOnline, platformRanking, heatmap, weeklyTrend },
+    { stats, unitRankingSocial, unitRankingOnline, heatmap, weeklyTrend },
     monitoring,
   ] = await Promise.all([
     getDashboardOverview(),
@@ -60,9 +59,6 @@ export default async function Dashboard({ searchParams }) {
         <UnitRankingTable data={unitRankingOnline} title="Keaktifan Polsek dalam Amplifikasi Media Online" />
       </div>
 
-      <div className="mt-6">
-        <PlatformRankingTable data={platformRanking} />
-      </div>
     </>
   );
 }
