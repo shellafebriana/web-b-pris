@@ -117,6 +117,15 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
     })
   }
 
+  // href hanya boleh http/https — nilainya dari DB, jangan dipercaya mentah.
+  function hrefAman(u) {
+    try {
+      const p = new URL(u)
+      return p.protocol === 'http:' || p.protocol === 'https:' ? u : null
+    } catch {
+      return null
+    }
+  }
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -237,23 +246,15 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
                     <p className="text-sm text-gray-800 dark:text-white/90">{k.judul}</p>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
-                      {k.sudahResolve ? (
                         <a
                           href={k.url}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-brand-600 hover:underline dark:text-brand-400"
+                          title={k.sudahResolve ? undefined : 'Lewat Google News — akan diteruskan ke artikel asli'}
                         >
                           {k.sumberNama}
                         </a>
-                      ) : (
-                        <span
-                          className="text-gray-500 dark:text-gray-400"
-                          title="Link asli dipulihkan saat item ditambahkan"
-                        >
-                          {k.sumberNama}
-                        </span>
-                      )}
                       <span className="text-gray-300 dark:text-gray-600">·</span>
                       <span className="text-gray-400 dark:text-gray-500">
                         {{ GNEWS: 'Google News', IG: 'Instagram', IGBD: 'Instagram' }[k.jenisSumber] ?? 'RSS'}

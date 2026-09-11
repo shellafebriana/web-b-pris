@@ -855,32 +855,36 @@ export async function ambilKandidat(sesiId, daftarId, petaKategori = {}) {
 
   const daftar = []
   const gagalResolve = []
+  const BATCH_RESOLVE = 6
 
-  for (const r of rows) {
-    let url = r.urlAsli ?? petaCache.get(cacheKeyGoogle(r.googleId)) ?? null
+  for (let i = 0; i < rows.length; i += BATCH_RESOLVE) {
+    const potongan = rows.slice(i, i + BATCH_RESOLVE)
+    await Promise.all(potongan.map(async (r) => {
+      let url = r.urlAsli ?? petaCache.get(cacheKeyGoogle(r.googleId)) ?? null
 
-    if (!url && r.googleId) {
-      url = await resolveUrl(r.url, null, `https://${r.sumberNama}`)
-      if (url) {
-        await prisma.monitoringResolveCache.upsert({
-          where: { googleId: cacheKeyGoogle(r.googleId) },
-          update: { urlAsli: url },
-          create: { googleId: cacheKeyGoogle(r.googleId), urlAsli: url },
-        })
+      if (!url && r.googleId) {
+        url = await resolveUrl(r.url, null, `https://${r.sumberNama}`)
+        if (url) {
+          await prisma.monitoringResolveCache.upsert({
+            where: { googleId: cacheKeyGoogle(r.googleId) },
+            update: { urlAsli: url },
+            create: { googleId: cacheKeyGoogle(r.googleId), urlAsli: url },
+          })
+        }
       }
-    }
 
-    if (!url) {
-      gagalResolve.push({ alasan: 'Link asli gagal dipulihkan', teks: r.judul.slice(0, 60) })
-      continue
-    }
+      if (!url) {
+        gagalResolve.push({ alasan: 'Link asli gagal dipulihkan', teks: r.judul.slice(0, 60) })
+        return
+      }
 
-    const kode = petaKategori[r.id.toString()] ?? r.saranKode
-    daftar.push({
-      judul: r.judul,
-      url,
-      kategoriId: kode ? (petaKode.get(kode)?.toString() ?? null) : null,
-    })
+      const kode = petaKategori[r.id.toString()] ?? r.saranKode
+      daftar.push({
+        judul: r.judul,
+        url,
+        kategoriId: kode ? (petaKode.get(kode)?.toString() ?? null) : null,
+      })
+    }))
   }
 
   const hasil = daftar.length
