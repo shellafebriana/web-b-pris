@@ -89,7 +89,7 @@ export default function RekapSessionList({ sessions, pagination, formats }) {
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
-          <CreateSessionModal formats={formats.filter((f) => f.isAktif)} />
+          <CreateSessionModal formats={formats.filter((f) => f.isActive)} />
           <Link
             href="/sesi-rekap/import-bulk"
             className="whitespace-nowrap rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
