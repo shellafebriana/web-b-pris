@@ -33,7 +33,7 @@ export default function PasteBulkForm({
     if (state?.success) {
       const parts = [`${state.added} link berhasil ditambahkan`]
       if (state.duplicates?.length > 0) parts.push(`${state.duplicates.length} duplikat dilewati`)
-      if (state.conflicts?.length > 0) parts.push(`${state.conflicts.length} platform gak cocok dilewati`)
+      if (state.conflicts?.length > 0) parts.push(`${state.conflicts.length} platform tidak sesuai dilewati`)
       showToast(parts.join(', '), 'success')
       router.push(`/sesi-rekap/${sessionId}`)
     } else if (state?.error) {
@@ -147,7 +147,7 @@ export default function PasteBulkForm({
     return (
       <div className="flex h-full items-center justify-center p-6">
         <div className="rounded-2xl border border-error-200 bg-error-50 p-5 text-sm text-error-700 dark:border-error-800 dark:bg-error-500/10 dark:text-error-400">
-          Format sesi ini gak punya platform valid — cek konfigurasi Format Rekap-nya dulu sebelum nambah link.
+          Format sesi ini tidak memiliki platform yang valid. Periksa konfigurasi Format Rekap sebelum menambahkan link.
         </div>
       </div>
     )
@@ -165,7 +165,7 @@ export default function PasteBulkForm({
         <div className="flex w-full flex-col border-b border-gray-200 dark:border-gray-800 md:w-1/2 md:border-b-0 md:border-r">
           <div className="p-5 md:flex-1 md:overflow-y-auto">
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Paste URL (satu baris satu link, atau langsung dari chat WhatsApp)
+              Tempel URL (satu baris satu link atau langsung dari chat WhatsApp)
             </label>
             <textarea
               value={raw}
@@ -178,18 +178,18 @@ export default function PasteBulkForm({
               className="min-h-48 w-full flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 resize-none"
             />
             <p className="mt-1.5 text-xs text-gray-400">
-              Platform otomatis terdeteksi dari domain URL (domain gak dikenal → Lainnya){platformsRestricted ? ', dibatasi sesuai format sesi ini' : ''}.
+              Platform otomatis terdeteksi dari domain URL {platformsRestricted ? ', dibatasi sesuai format sesi ini' : ''}.
               {requiresUnit && ' Unit terdeteksi dari nama pengirim WhatsApp / isi pesan, atau tulis nama unit di barisnya sendiri.'}
             </p>
             {ignoredCount > 0 && (
               <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                {ignoredCount} baris diabaikan (gak ada URL{requiresUnit ? ' atau nama unit yang dikenali' : ''})
+                {ignoredCount} baris diabaikan (tidak ada URL{requiresUnit ? ' atau nama unit yang dikenali' : ''})
               </p>
             )}
             <div className={`mt-4 grid grid-cols-1 gap-4 ${requiresUnit ? 'lg:grid-cols-2' : ''}`}>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Default platform <span className="font-normal text-gray-400">(kalau gak kedeteksi)</span>
+                  Platform bawaan <span className="font-normal text-gray-400">(jika tidak terdeteksi)</span>
                 </label>
                 <select
                   value={defaultPlatformId}
@@ -203,7 +203,7 @@ export default function PasteBulkForm({
               {requiresUnit && (
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Default unit <span className="font-normal text-gray-400">(kalau gak ada header)</span>
+                    Unit bawaan <span className="font-normal text-gray-400">(jika tidak terdapat header)</span>
                   </label>
                   <SearchableUnitSelect
                     units={units}
@@ -227,7 +227,7 @@ export default function PasteBulkForm({
                 <span className="text-xs text-error-600 dark:text-error-400">{missingPlatformCount} belum ada platform</span>
               )}
               {conflictCount > 0 && (
-                <span className="text-xs text-amber-600 dark:text-amber-400">{conflictCount} platform gak cocok</span>
+                <span className="text-xs text-amber-600 dark:text-amber-400">{conflictCount} platform tidak sesuai</span>
               )}
               {duplicateCount > 0 && (
                 <span className="text-xs text-gray-400">{duplicateCount} duplikat</span>
@@ -237,7 +237,7 @@ export default function PasteBulkForm({
           <div className="md:flex-1 md:overflow-y-auto">
             {parsedItems.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-gray-300 dark:text-gray-600">
-                Paste URL di sebelah kiri...
+                Tempel URLdi sebelah kiri...
               </div>
             ) : (
               parsedItems.map((item, i) => (
@@ -264,7 +264,7 @@ export default function PasteBulkForm({
                   )}
                   <span className="min-w-0 flex-1 truncate font-mono text-gray-500 dark:text-gray-400">{item.url}</span>
                   {item._isDuplicate && (
-                    <span className="shrink-0 text-gray-400" title="Udah ada di sesi ini / ke-paste 2x">duplikat</span>
+                    <span className="shrink-0 text-gray-400" title="Sudah ada di sesi ini atau ditempel dua kali">duplikat</span>
                   )}
                   {item._conflictName && (
                     <span className="shrink-0 text-amber-600 dark:text-amber-400" title={`Kedeteksi dari ${item._conflictName}`}>

@@ -8,15 +8,15 @@ import DeleteRekapSessionButton from './DeleteRekapSessionButton'
 
 const STATE_FILTERS = [
   { value: '', label: 'Semua' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'active', label: 'Active' },
-  { value: 'finished', label: 'Finished' },
+  { value: 'draft', label: 'Draf' },
+  { value: 'active', label: 'Aktif' },
+  { value: 'finished', label: 'Selesai' },
 ]
 
 const STATE_BADGE = {
-  draft: { color: 'light', label: 'Draft' },
-  active: { color: 'success', label: 'Active' },
-  finished: { color: 'primary', label: 'Finished' },
+  draft: { color: 'light', label: 'Draf' },
+  active: { color: 'success', label: 'Aktif' },
+  finished: { color: 'primary', label: 'Selesai' },
 }
 
 export default function RekapSessionList({ sessions, pagination, formats }) {
@@ -89,7 +89,7 @@ export default function RekapSessionList({ sessions, pagination, formats }) {
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
-          <CreateSessionModal formats={formats.filter((f) => f.isActive)} />
+          <CreateSessionModal formats={formats.filter((f) => f.isAktif)} />
           <Link
             href="/sesi-rekap/import-bulk"
             className="whitespace-nowrap rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
@@ -115,7 +115,7 @@ export default function RekapSessionList({ sessions, pagination, formats }) {
             {sessions.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                  {search || currentState || currentFormat ? 'Gak ada sesi yang cocok' : 'Belum ada sesi rekap'}
+                  {search || currentState || currentFormat ? 'Tidak ada sesi yang sesuai' : 'Belum ada sesi rekap'}
                 </td>
               </tr>
             ) : (

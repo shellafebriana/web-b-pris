@@ -32,7 +32,7 @@ export default async function KandidatPage({ searchParams }) {
           Antrean Kandidat
         </h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Berita yang ditarik otomatis. Centang yang layak masuk laporan hari ini.
+          Berita yang ditarik otomatis. Pilih yang masuk laporan hari ini.
         </p>
       </div>
 

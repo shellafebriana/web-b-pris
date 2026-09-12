@@ -25,10 +25,10 @@ export default function ImportBulkForm({ formats, platforms, units }) {
     if (state?.success) {
       const parts = []
       if (state.created > 0) parts.push(`${state.created} sesi baru dibuat`)
-      if (state.appended > 0) parts.push(`${state.appended} sesi ditambahkan link-nya`)
+      if (state.appended > 0) parts.push(`${state.appended} sesi ditambahkan dengan link baru`)
       if (state.totalSkipped > 0) parts.push(`${state.totalSkipped} link duplikat dilewati`)
-      if (state.totalInvalidPlatform > 0) parts.push(`${state.totalInvalidPlatform} link platform-nya gak sesuai dilewati`)
-      if (state.totalInvalidUrl > 0) parts.push(`${state.totalInvalidUrl} URL gak valid dilewati`)
+      if (state.totalInvalidPlatform > 0) parts.push(`${state.totalInvalidPlatform} link dengan platform yang tidak sesuai dilewati`)
+      if (state.totalInvalidUrl > 0) parts.push(`${state.totalInvalidUrl} URL tidak valid dilewati`)
       if (state.failedCount > 0) parts.push(`${state.failedCount} gagal diproses`)
       showToast(parts.join(', ') || 'Selesai', state.failedCount > 0 ? 'error' : 'success')
       router.push('/sesi-rekap')
@@ -143,7 +143,7 @@ export default function ImportBulkForm({ formats, platforms, units }) {
         }
         setCheckResults(map)
       } catch {
-        // gagal cek gak nge-block apa-apa — submit tetep divalidasi ulang di server
+        // gagal cek tidak nge-block apa-apa — submit tetep divalidasi ulang di server
       }
     }, 500)
     return () => clearTimeout(checkDebounceRef.current)
@@ -234,21 +234,21 @@ export default function ImportBulkForm({ formats, platforms, units }) {
                   placeholder="Contoh: 21 Juli 2026"
                   className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
                 />
-                <p className="mt-1 text-xs text-gray-400">Dipake buat semua sesi baru yang dibuat dari batch ini.</p>
+                <p className="mt-1 text-xs text-gray-400">Digunakan untuk semua sesi baru yang dibuat dari batch ini.</p>
               </div>
             )}
 
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Paste dari chat WhatsApp
+              Tempel dari chat WhatsApp
             </label>
             <textarea
               value={raw}
               onChange={(e) => setRaw(e.target.value)}
-              placeholder={'[21/7 11.41] Bu Ayu Humas Polsek Giri: https://giri-news.lensabwi.com/hukum/artikel-satu...\n[21/7 11.54] Pak Hadi Humas Polsek Singojuruh: https://singojuruh-info.lensabwi.com/hukum/artikel-satu...\n[21/7 12.02] Bu Irma Humas Polsek Sempu: https://sempu-news.lensabwi.com/regional/artikel-dua...'}
+              placeholder={'[21/7 11.41] Operator 1: https://giri-news.lensabwi.com/hukum/artikel-satu...\n[21/7 11.54] Operator 2: https://singojuruh-info.lensabwi.com/hukum/artikel-satu...\n[21/7 12.02] '}
               className="min-h-64 w-full rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 resize-none"
             />
             <p className="mt-1.5 text-xs text-gray-400">
-              Link otomatis dikelompokin per artikel. Kalau judul udah pernah ada, link baru bakal ditambahin ke sesi itu.
+              Link otomatis dikelompokkan berdasarkan artikel. Jika judul sudah ada, link baru akan ditambahkan ke sesi tersebut.
               {requiresUnit && ' Unit terdeteksi dari nama pengirim WhatsApp.'}
               {platformsRestricted && ' Platform dibatasi sesuai format yang dipilih.'}
             </p>
@@ -261,23 +261,23 @@ export default function ImportBulkForm({ formats, platforms, units }) {
         <div className="flex w-full flex-col md:w-1/2">
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-5 py-3 dark:border-gray-800">
             <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-              {groups.length > 0 ? `${groups.length} artikel` : 'Preview'}
+              {groups.length > 0 ? `${groups.length} artikel` : 'Pratinjau'}
             </span>
             {groups.length > 0 && (
               <div className="flex flex-wrap gap-2 text-xs">
                 {newSessionCount > 0 && <span className="text-brand-600 dark:text-brand-400">{newSessionCount} sesi baru</span>}
-                {appendSessionCount > 0 && <span className="text-success-600 dark:text-success-400">{appendSessionCount} sesi ditambahin</span>}
+                {appendSessionCount > 0 && <span className="text-success-600 dark:text-success-400">{appendSessionCount} sesi ditambahkan</span>}
                 <span className="text-gray-400">·</span>
                 <span className="text-success-600 dark:text-success-400">{totalNewLinks} link baru</span>
                 {totalDuplicateLinks > 0 && <span className="text-amber-600 dark:text-amber-400">{totalDuplicateLinks} duplikat</span>}
-                {totalRestrictedLinks > 0 && <span className="text-error-600 dark:text-error-400">{totalRestrictedLinks} platform gak sesuai</span>}
+                {totalRestrictedLinks > 0 && <span className="text-error-600 dark:text-error-400">{totalRestrictedLinks} platform tidak sesuai</span>}
               </div>
             )}
           </div>
           <div className="md:flex-1 md:overflow-y-auto">
             {enrichedGroups.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-gray-300 dark:text-gray-600">
-                Paste chat WA di sebelah kiri...
+                Tempel chat WA di sebelah kiri...
               </div>
             ) : (
               <div className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -286,7 +286,7 @@ export default function ImportBulkForm({ formats, platforms, units }) {
                     <div className="mb-2 flex flex-wrap items-start gap-2">
                       {group.checking ? (
                         <span className="mt-1 shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-400 dark:bg-white/5">
-                          mengecek...
+                          Memeriksa...
                         </span>
                       ) : group.existingSession ? (
                         <span className="mt-1 shrink-0 rounded-full bg-success-50 px-2 py-0.5 text-xs font-medium text-success-700 dark:bg-success-500/20 dark:text-success-300">
@@ -304,7 +304,7 @@ export default function ImportBulkForm({ formats, platforms, units }) {
                       )}
                       {group.restrictedCount > 0 && (
                         <span className="mt-1 shrink-0 rounded-full bg-error-100 px-2 py-0.5 text-xs font-medium text-error-700 dark:bg-error-500/20 dark:text-error-300">
-                          {group.restrictedCount} platform gak sesuai
+                          {group.restrictedCount} platform tidak sesuai
                         </span>
                       )}
                       <input
@@ -316,7 +316,7 @@ export default function ImportBulkForm({ formats, platforms, units }) {
                     </div>
                     {group.existingSession && (
                       <p className="mb-2 text-xs text-gray-400">
-                        ↳ Sesi udah ada, {group.existingSession.totalLinks} link sebelumnya
+                        ↳ Sesi sudah tersedia dengan {group.existingSession.totalLinks} link sebelumnya
                       </p>
                     )}
                     {group.unitNames.length > 0 && (

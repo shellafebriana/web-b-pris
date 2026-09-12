@@ -17,7 +17,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
   const { showToast } = useToast()
   const router = useRouter()
   const [pending, startTransition] = useTransition()
-  const [menarik, setMenarik] = useState(false)
+  const [menarik, setMengambil] = useState(false)
   const [pilihan, setPilihan] = useState(() => new Set())
   const [kategoriPilihan, setKategoriPilihan] = useState({})
   const [kategoriMassal, setKategoriMassal] = useState('')
@@ -52,7 +52,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
   }
 
     async function tarikSekarang() {
-    setMenarik(true)
+    setMengambil(true)
     setKemajuan('menyiapkan...')
     let totalBaru = 0
     let gagal = 0
@@ -85,9 +85,9 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
       )
       router.refresh()
     } catch {
-      showToast('Gagal menarik. Cek koneksi lalu coba lagi.', 'error')
+      showToast('Gagal mengambil data. Periksa koneksi lalu coba lagi.', 'error')
     } finally {
-      setMenarik(false)
+      setMengambil(false)
       setKemajuan(null)
     }
   }
@@ -150,7 +150,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
         </div>
 
         <span className="text-sm text-gray-500 dark:text-gray-400">
-          {pagination.total} menunggu
+          {pagination.total} kandidat dalam antrean
         </span>
 
         <div className="ml-auto flex flex-wrap gap-2">
@@ -160,7 +160,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
             disabled={menarik || pending}
             className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
           >
-            {menarik ? (kemajuan ?? 'Menarik...') : 'Tarik sekarang'}
+            {menarik ? (kemajuan ?? 'Mengambil...') : 'Ambil Data'}
           </button>
           {pilihan.size > 0 ? (
             <>
@@ -170,7 +170,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
                 disabled={pending}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-400"
               >
-                Singkirkan ({pilihan.size})
+                Tolak ({pilihan.size})
               </button>
               <button
                 type="button"
@@ -178,7 +178,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
                 disabled={pending}
                 className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
               >
-                {pending ? 'Menyimpan...' : `Tambah ${pilihan.size} ke hari ini`}
+                {pending ? 'Menyimpan...' : `Tambahkan ${pilihan.size} ke sesi hari ini`}
               </button>
             </>
           ) : null}
@@ -194,7 +194,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
               onChange={toggleSemua}
               className="size-4 accent-brand-500"
             />
-            Centang semua di halaman ini ({data.length})
+            Pilih semua di halaman ini ({data.length})
           </label>
 
           {pilihan.size > 0 ? (
@@ -205,7 +205,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
                 onChange={(e) => terapkanMassal(e.target.value)}
                 className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
               >
-                <option value="">Pakai saran sistem</option>
+                <option value="">Gunakan saran sistem</option>
                 {kategori.map((kat) => (
                   <option key={kat.id} value={kat.kode}>
                     {kat.sortOrder}. {kat.nama}
@@ -220,7 +220,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
       {data.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/3">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Antrean kosong. Tekan &quot;Tarik sekarang&quot; untuk mengambil berita terbaru.
+            Antrean kosong. Pilih &quot;Ambil Data&quot; untuk mengambil berita terbaru.
           </p>
         </div>
       ) : (
@@ -272,7 +272,7 @@ export default function KandidatPanel({ data, kategori, pagination, kanalAktif }
                             : 'bg-blue-light-50 text-blue-light-500 dark:bg-blue-light-500/15'
                         }`}
                       >
-                        {k.kanal === 'SOSMED' ? 'Sosmed' : 'Online'}
+                        {k.kanal === 'SOSMED' ? 'Media Sosial' : 'Media Online'}
                       </span>
 
                       <select

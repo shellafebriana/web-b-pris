@@ -28,7 +28,7 @@ const MonitoringSesiList = ({ daftar, ringkas, bulan, daftarBulan }) => {
           { label: 'Item media online', nilai: formatNumber(ringkas.totalOnline) },
           { label: 'Item media sosial', nilai: formatNumber(ringkas.totalSosmed) },
           {
-            label: 'Perlu review',
+            label: 'Perlu ditinjau',
             nilai: formatNumber(ringkas.totalReview),
             kelas: ringkas.totalReview > 0 ? 'text-warning-600 dark:text-warning-500' : undefined,
           },
@@ -44,7 +44,7 @@ const MonitoringSesiList = ({ daftar, ringkas, bulan, daftarBulan }) => {
           const kelasKartu =
             'rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3 md:p-5'
 
-          if (k.label === 'Perlu review' && ringkas.totalReview > 0) {
+          if (k.label === 'Perlu ditinjau' && ringkas.totalReview > 0) {
             return (
               <Link
                 key={k.label}
@@ -53,7 +53,7 @@ const MonitoringSesiList = ({ daftar, ringkas, bulan, daftarBulan }) => {
               >
                 {isi}
                 <span className="mt-1 block text-xs text-warning-600 dark:text-warning-500">
-                  Klik untuk memperbaiki
+                  Tinjau dan perbaiki
                 </span>
               </Link>
             )
@@ -112,7 +112,7 @@ const MonitoringSesiList = ({ daftar, ringkas, bulan, daftarBulan }) => {
                           {formatNumber(d.totalItem)} item
                           {d.perluReview > 0 ? (
                             <span className="text-warning-600 dark:text-warning-500">
-                              {' '}· {formatNumber(d.perluReview)} perlu review
+                              {' '}· {formatNumber(d.perluReview)} perlu ditinjau
                             </span>
                           ) : null}
                         </>
@@ -136,7 +136,7 @@ const MonitoringSesiList = ({ daftar, ringkas, bulan, daftarBulan }) => {
                       </span>
                     ) : (
                       <span className="inline-flex rounded-full bg-warning-50 px-2.5 py-0.5 text-xs font-medium text-warning-600 dark:bg-warning-500/15 dark:text-orange-400">
-                        Draft
+                        Draf
                       </span>
                     )}
                   </td>
