@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { verifyToken, getTokenFromHeader } from '@/lib/auth'
 import { parseQuery } from '@/lib/middleware'
+import { createUnit } from '@/lib/models/unit'
 
 export async function GET(req) {
   try {
@@ -100,38 +101,17 @@ export async function POST(req) {
       )
     }
 
-    const { name, type } = await req.json()
+    const { name, type, domains, aliases, rayon } = await req.json()
 
-    // Validation
-    if (!name || !type) {
-      return NextResponse.json(
-        { error: 'Nama dan type unit harus diisi' },
-        { status: 400 }
-      )
-    }
-
-    const unit = await prisma.unit.create({
-      data: {
-        name,
-        type,
-      },
-    })
+    // Validasi dan pembersihan ada di Model, supaya aturannya sama persis
+    // dengan yang dipakai form admin.
+    const unit = await createUnit({ name, type, domains, aliases, rayon })
 
     return NextResponse.json(
       { message: 'Unit berhasil dibuat', data: unit },
       { status: 201 }
     )
   } catch (error) {
-    console.error('POST Unit error:', error)
-    if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Nama unit sudah ada' },
-        { status: 400 }
-      )
-    }
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan', details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 }

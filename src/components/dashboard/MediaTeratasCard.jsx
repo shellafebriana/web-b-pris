@@ -16,7 +16,7 @@ const MediaTeratasCard = ({ data }) => {
           Belum ada data media online bulan ini.
         </p>
       ) : (
-        <div className="mt-5 space-y-3">
+        <div className="mt-5 space-y-3.5">
           {daftar.map((m) => (
             <div key={m.domain}>
               <div className="flex items-baseline justify-between gap-3">

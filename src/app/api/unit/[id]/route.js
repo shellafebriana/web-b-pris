@@ -1,156 +1,77 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
 import { verifyToken, getTokenFromHeader } from '@/lib/auth'
+import { getUnitById, updateUnit, deleteUnit } from '@/lib/models/unit'
+
+// Token dicek per-request; Route Handler tidak melewati layout admin.
+function cekAuth(req, { wajibAdmin = false } = {}) {
+  const token = getTokenFromHeader(req.headers.get('authorization'))
+  if (!token) {
+    return { error: NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 }) }
+  }
+
+  const verification = verifyToken(token)
+  if (!verification.valid) {
+    return { error: NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 }) }
+  }
+
+  if (wajibAdmin && verification.data.role !== 'admin') {
+    return { error: NextResponse.json({ error: 'Forbidden - Only admin allowed' }, { status: 403 }) }
+  }
+
+  return { user: verification.data }
+}
 
 export async function GET(req, { params }) {
+  const auth = cekAuth(req)
+  if (auth.error) return auth.error
+
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = getTokenFromHeader(authHeader)
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const verification = verifyToken(token)
-    if (!verification.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    const unit = await prisma.unit.findUnique({
-      where: { id: parseInt(params.id) },
-      include: {
-        links: true,
-      },
-    })
+    // params adalah Promise di Next 15+; tanpa await nilainya undefined.
+    const { id } = await params
+    const unit = await getUnitById(id)
 
     if (!unit) {
-      return NextResponse.json(
-        { error: 'Unit tidak ditemukan' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Unit tidak ditemukan' }, { status: 404 })
     }
 
-    return NextResponse.json(
-      { message: 'Data Unit berhasil diambil', data: unit },
-      { status: 200 }
-    )
+    return NextResponse.json({ message: 'Data Unit berhasil diambil', data: unit }, { status: 200 })
   } catch (error) {
     console.error('GET Unit detail error:', error)
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan', details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Terjadi kesalahan', details: error.message }, { status: 500 })
   }
 }
 
 export async function PUT(req, { params }) {
+  const auth = cekAuth(req, { wajibAdmin: true })
+  if (auth.error) return auth.error
+
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = getTokenFromHeader(authHeader)
+    const { id } = await params
+    const { name, type, domains, aliases, rayon } = await req.json()
 
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
+    const unit = await updateUnit(id, { name, type, domains, aliases, rayon })
 
-    const verification = verifyToken(token)
-    if (!verification.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    if (verification.data.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden - Only admin can update unit' },
-        { status: 403 }
-      )
-    }
-
-    const { name, type } = await req.json()
-
-    const unit = await prisma.unit.update({
-      where: { id: parseInt(params.id) },
-      data: {
-        name: name || undefined,
-        type: type || undefined,
-      },
-    })
-
-    return NextResponse.json(
-      { message: 'Unit berhasil diupdate', data: unit },
-      { status: 200 }
-    )
+    return NextResponse.json({ message: 'Unit berhasil diupdate', data: unit }, { status: 200 })
   } catch (error) {
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Unit tidak ditemukan' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Unit tidak ditemukan' }, { status: 404 })
     }
     console.error('PUT Unit error:', error)
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan', details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 }
 
 export async function DELETE(req, { params }) {
+  const auth = cekAuth(req, { wajibAdmin: true })
+  if (auth.error) return auth.error
+
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = getTokenFromHeader(authHeader)
+    const { id } = await params
+    await deleteUnit(id)
 
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const verification = verifyToken(token)
-    if (!verification.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    if (verification.data.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden - Only admin can delete unit' },
-        { status: 403 }
-      )
-    }
-
-    const unit = await prisma.unit.delete({
-      where: { id: parseInt(params.id) },
-    })
-
-    return NextResponse.json(
-      { message: 'Unit berhasil dihapus', data: unit },
-      { status: 200 }
-    )
+    return NextResponse.json({ message: 'Unit berhasil dihapus' }, { status: 200 })
   } catch (error) {
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Unit tidak ditemukan' },
-        { status: 404 }
-      )
-    }
     console.error('DELETE Unit error:', error)
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan', details: error.message },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 }

@@ -12,6 +12,12 @@ const TYPE_FILTERS = [
   { value: 'POLSEK', label: 'POLSEK' },
 ]
 
+const TYPE_BADGE = {
+  POLRES: 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400',
+  SATFUNG: 'bg-blue-light-50 text-blue-light-700 dark:bg-blue-light-500/15 dark:text-blue-light-400',
+  POLSEK: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
+}
+
 export default function UnitList({ units }) {
   const [search, setSearch] = useState('')
   const [type, setType] = useState('all')
@@ -63,7 +69,8 @@ export default function UnitList({ units }) {
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-800">
               <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Nama</th>
-              <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Type</th>
+              <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Tipe</th>
+              <th className="px-5 py-3 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Rayon</th>
               <th className="px-5 py-3 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Total Link</th>
               <th className="px-5 py-3 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Aksi</th>
             </tr>
@@ -71,7 +78,7 @@ export default function UnitList({ units }) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                <td colSpan={5} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
                   {search || type !== 'all'
                     ? 'Tidak ada unit yang sesuai dengan filter ini'
                     : 'Belum ada unit'}
@@ -85,15 +92,38 @@ export default function UnitList({ units }) {
                     idx % 2 === 0 ? 'bg-white dark:bg-transparent' : 'bg-gray-50 dark:bg-white/[0.02]'
                   }`}
                 >
-                  <td className="px-5 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">{unit.name}</td>
-                  <td className="px-5 py-3 text-sm text-gray-500 dark:text-gray-400">{unit.type}</td>
+                  <td className="px-5 py-3">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{unit.name}</p>
+                    {unit.domains.length > 0 || unit.aliases.length > 0 ? (
+                      <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+                        {unit.domains.length > 0
+                          ? unit.domains.slice(0, 2).join(', ') +
+                            (unit.domains.length > 2 ? ` +${unit.domains.length - 2}` : '')
+                          : null}
+                        {unit.domains.length > 0 && unit.aliases.length > 0 ? ' · ' : null}
+                        {unit.aliases.length > 0 ? `${unit.aliases.length} alias` : null}
+                      </p>
+                    ) : null}
+                  </td>
+                  <td className="px-5 py-3 text-sm">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        TYPE_BADGE[unit.type] || TYPE_BADGE.POLSEK
+                      }`}
+                    >
+                      {unit.type}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
+                    {unit.rayon ?? '—'}
+                  </td>
                   <td className="px-5 py-3 text-right text-sm text-gray-800 dark:text-gray-200">
                     {unit.totalLinks.toLocaleString('id-ID')}
                   </td>
                   <td className="px-5 py-3 text-right text-sm">
                     <div className="flex items-center justify-end gap-3">
                       <UnitFormModal mode="edit" unit={unit} />
-                      <DeleteUnitButton id={unit.id} name={unit.name} />
+                      <DeleteUnitButton id={unit.id} name={unit.name} pemakaian={unit.pemakaian} />
                     </div>
                   </td>
                 </tr>
