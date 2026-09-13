@@ -18,7 +18,12 @@ export default async function KandidatPage({ searchParams }) {
   const kanal = KANAL_SAH.includes(sp?.kanal) ? sp.kanal : null
 
   const { data, kategori, pagination } = await getKandidat({ page: halaman, kanal })
-
+  
+  if (pagination.totalPage > 0 && halaman > pagination.totalPage) {
+    const q = new URLSearchParams({ page: String(pagination.totalPage) })
+    if (kanal) q.set('kanal', kanal)
+    redirect(`/monitoring/kandidat?${q}`)
+  }
   return (
     <div>
       <div className="mb-6">
