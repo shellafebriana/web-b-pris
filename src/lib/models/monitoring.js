@@ -630,6 +630,16 @@ export async function getFormatMonitoring() {
     .map((r) => ({ id: r.id, name: r.name }))
 }
 
+export async function getKategoriMonitoringList() {
+  const rows = await prisma.monitoringKategori.findMany({
+    where: { isActive: true },
+    orderBy: { sortOrder: 'asc' },
+    select: { kode: true, nama: true },
+  })
+  return rows
+}
+
+
 export async function generateLaporanMonitoring(sesiId, formatId) {
   const [sesi, format] = await Promise.all([
     prisma.monitoringSesi.findUnique({

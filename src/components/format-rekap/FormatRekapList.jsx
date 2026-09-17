@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { SearchIcon, PlusIcon } from '@/icons'
 import DeleteFormatRekapButton from './DeleteFormatRekapButton'
 
+const JENIS_LABEL = { rekap: 'Rekap Link', monitoring: 'Monitoring' }
 const STATUS_FILTERS = [
   { value: 'all', label: 'Semua' },
   { value: 'active', label: 'Aktif' },
@@ -17,7 +18,8 @@ export default function FormatRekapList({ formats }) {
 
   const filtered = useMemo(() => {
     return formats.filter((f) => {
-      const matchSearch = f.name.toLowerCase().includes(search.toLowerCase())
+      const q = search.toLowerCase()
+      const matchSearch = f.name.toLowerCase().includes(q) || f.id.toLowerCase().includes(q)
       const matchStatus = status === 'all' || (status === 'active' ? f.isActive : !f.isActive)
       return matchSearch && matchStatus
     })
@@ -32,7 +34,7 @@ export default function FormatRekapList({ formats }) {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama format..."
+            placeholder="Cari nama atau ID format..."
             className="w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-9 pr-4 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-3 focus:ring-brand-500/10 dark:border-gray-800 dark:text-white"
           />
         </div>
@@ -73,7 +75,9 @@ export default function FormatRekapList({ formats }) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-800">
+              <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">ID</th>
               <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Nama</th>
+              <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Jenis</th>
               <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Deskripsi</th>
               <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Status</th>
               <th className="px-5 py-3 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Aksi</th>
@@ -82,8 +86,8 @@ export default function FormatRekapList({ formats }) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                  {search || status !== 'all' ? 'Gak ada format yang cocok dengan filter ini' : 'Belum ada format'}
+                <td colSpan={6} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                  {search || status !== 'all' ? 'Tidak ada format yang sesuai dengan filter ini' : 'Belum ada format'}
                 </td>
               </tr>
             ) : (
@@ -94,7 +98,19 @@ export default function FormatRekapList({ formats }) {
                     idx % 2 === 0 ? 'bg-white dark:bg-transparent' : 'bg-gray-50 dark:bg-white/[0.02]'
                   }`}
                 >
+                  <td className="px-5 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">{format.id}</td>
                   <td className="px-5 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">{format.name}</td>
+                  <td className="px-5 py-3 text-sm">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        format.jenis === 'monitoring'
+                          ? 'bg-blue-light-50 text-blue-light-700 dark:bg-blue-light-500/15 dark:text-blue-light-400'
+                          : 'bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-400'
+                      }`}
+                    >
+                      {JENIS_LABEL[format.jenis]}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-sm text-gray-500 dark:text-gray-400">{format.description || '-'}</td>
                   <td className="px-5 py-3 text-sm">
                     <span
@@ -110,9 +126,9 @@ export default function FormatRekapList({ formats }) {
                   <td className="px-5 py-3 text-right text-sm">
                     <div className="flex items-center justify-end gap-3">
                       <Link href={`/format-rekap/${format.id}/edit`} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
-                        Edit
+                        Ubah
                       </Link>
-                      <DeleteFormatRekapButton id={format.id} name={format.name} />
+                      <DeleteFormatRekapButton id={format.id} name={format.name} totalSesi={format.totalSesi} />
                     </div>
                   </td>
                 </tr>

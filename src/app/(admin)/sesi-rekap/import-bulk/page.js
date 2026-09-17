@@ -12,7 +12,7 @@ export default async function ImportBulkPage() {
   if (!user || user.role !== 'admin') redirect('/login')
 
   const [formats, platforms, units] = await Promise.all([
-    getAllReportFormatsList(),
+    getAllReportFormatsList({ jenis: 'rekap' }),
     getAllPlatformsList(),
     getAllUnitsList(),
   ])

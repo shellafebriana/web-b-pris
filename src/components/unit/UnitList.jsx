@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { SearchIcon } from '@/icons'
 import UnitFormModal from './UnitFormModal'
 import DeleteUnitButton from './DeleteUnitButton'
+import Link from 'next/link'
 
 const TYPE_FILTERS = [
   { value: 'all', label: 'Semua' },
@@ -24,7 +25,11 @@ export default function UnitList({ units }) {
 
   const filtered = useMemo(() => {
     return units.filter((u) => {
-      const matchSearch = u.name.toLowerCase().includes(search.toLowerCase())
+      const q = search.toLowerCase()
+      const matchSearch =
+        u.name.toLowerCase().includes(q) ||
+        u.domains.some((d) => d.toLowerCase().includes(q)) ||
+        u.aliases.some((a) => a.toLowerCase().includes(q))
       const matchType = type === 'all' || u.type === type
       return matchSearch && matchType
     })
@@ -70,8 +75,7 @@ export default function UnitList({ units }) {
             <tr className="border-b border-gray-200 dark:border-gray-800">
               <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Nama</th>
               <th className="px-5 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">Tipe</th>
-              <th className="px-5 py-3 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Rayon</th>
-              <th className="px-5 py-3 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Total Link</th>
+              <th className="px-5 py-3 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Rayon</th> 
               <th className="px-5 py-3 text-right text-sm font-semibold text-gray-600 dark:text-gray-300">Aksi</th>
             </tr>
           </thead>
@@ -93,7 +97,12 @@ export default function UnitList({ units }) {
                   }`}
                 >
                   <td className="px-5 py-3">
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{unit.name}</p>
+                    <Link
+                      href={`/unit/${unit.id}`}
+                      className="text-sm font-medium text-gray-800 hover:text-brand-600 dark:text-gray-200 dark:hover:text-brand-400"
+                    >
+                      {unit.name}
+                    </Link>
                     {unit.domains.length > 0 || unit.aliases.length > 0 ? (
                       <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
                         {unit.domains.length > 0
@@ -117,12 +126,8 @@ export default function UnitList({ units }) {
                   <td className="px-5 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
                     {unit.rayon ?? '—'}
                   </td>
-                  <td className="px-5 py-3 text-right text-sm text-gray-800 dark:text-gray-200">
-                    {unit.totalLinks.toLocaleString('id-ID')}
-                  </td>
                   <td className="px-5 py-3 text-right text-sm">
                     <div className="flex items-center justify-end gap-3">
-                      <UnitFormModal mode="edit" unit={unit} />
                       <DeleteUnitButton id={unit.id} name={unit.name} pemakaian={unit.pemakaian} />
                     </div>
                   </td>

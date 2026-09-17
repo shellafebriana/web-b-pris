@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth'
 import { createReportFormat, updateReportFormat, deleteReportFormat } from '@/lib/models/reportFormat'
+import { parse } from 'mustache'
 
 async function requireAdmin() {
   const user = await getAuthUser()
@@ -12,47 +13,62 @@ async function requireAdmin() {
 }
 
 function parseFormData(formData) {
-  const configRaw = formData.get('config')
+  let config
+  try {
+    config = JSON.parse(formData.get('config') || '{}')
+  } catch {
+    throw new Error('Konfigurasi format tidak dapat dibaca. Muat ulang halaman, lalu coba lagi.')
+  }
   return {
     name: formData.get('name'),
     description: formData.get('description'),
     template: formData.get('template'),
-    config: configRaw ? JSON.parse(configRaw) : {},
+    config,
     isActive: formData.get('isActive') === 'on',
   }
 }
+function revalidateFormat() {
+  revalidatePath('/format-rekap')
+  revalidatePath('/sesi-rekap')
+}
+
 
 export async function createReportFormatAction(prevState, formData) {
   await requireAdmin()
-  const id = formData.get('id')
-  const data = parseFormData(formData)
+  let hasil
 
   try {
-    await createReportFormat({ id, ...data })
+    hasil = await createReportFormat(parseFormData(formData))
   } catch (error) {
-    return { error: error.message }
+    return { error: error.message, success: false }
   }
 
-  revalidatePath('/format-rekap')
-  return { success: true }
+  revalidateFormat()
+  return { success: true, id: hasil.id }
 }
 
 export async function updateReportFormatAction(id, prevState, formData) {
   await requireAdmin()
-  const data = parseFormData(formData)
 
   try {
-    await updateReportFormat(id, data)
+    await updateReportFormat(id, parseFormData(formData))
   } catch (error) {
-    return { error: error.message }
+    return { error: error.message, success: false }
   }
 
-  revalidatePath('/format-rekap')
-  return { success: true }
+  revalidateFormat()
+  revalidatePath(`/format-rekap/${id}/edit`)
+  return { success: true, id }
 }
 
 export async function deleteReportFormatAction(id) {
   await requireAdmin()
-  await deleteReportFormat(id)
-  revalidatePath('/format-rekap')
+  try {
+    await deleteReportFormat(id)
+  } catch (error) {
+    return { error: error.message, success: false }
+  }
+
+  revalidateFormat()
+  return { success: true }
 }

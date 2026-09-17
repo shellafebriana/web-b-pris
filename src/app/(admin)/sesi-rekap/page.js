@@ -16,7 +16,7 @@ export default async function SesiRekapPage({ searchParams }) {
 
   const [{ data: sessions, pagination }, formats] = await Promise.all([
     getAllRekapSessions({ search, state, formatId, page, limit: 10 }),
-    getAllReportFormatsList(),
+    getAllReportFormatsList({ jenis: 'rekap' }),
   ])
 
   return (

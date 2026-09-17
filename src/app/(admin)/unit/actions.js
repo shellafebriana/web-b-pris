@@ -38,7 +38,7 @@ export async function createUnitAction(prevState, formData) {
     return { error: error.message }
   }
 
-  revalidatePath('/unit')
+  revalidatePath('/unit', 'layout')
   return { success: true }
 }
 
@@ -56,7 +56,7 @@ export async function updateUnitAction(id, prevState, formData) {
     return { error: error.message }
   }
 
-  revalidatePath('/unit')
+  revalidatePath('/unit', 'layout')
   return { success: true }
 }
 
@@ -67,7 +67,7 @@ export async function deleteUnitAction(id) {
   } catch (error) {
     return { error: error.message }
   }
-  revalidatePath('/unit')
+  revalidatePath('/unit', 'layout')
   return { success: true }
 }
 
