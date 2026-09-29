@@ -4,6 +4,9 @@ const RE_ANDROID =
   /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})[ ,]+(\d{1,2})[.:](\d{2})(?:[.:](\d{2}))?(?:\s*(AM|PM|am|pm))?\s+-\s+(.*)$/
 const RE_IOS =
   /^\[(\d{1,2})[.:](\d{2})(?:[.:](\d{2}))?(?:\s*(AM|PM|am|pm))?,\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})\]\s*(.*)$/
+// iOS bahasa Inggris: tanggal dulu (M/D/Y), jam 12-format. Contoh: [7/15/26, 2:05:40 PM]
+const RE_IOS_US =
+  /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s*(\d{1,2})[.:](\d{2})(?:[.:](\d{2}))?\s*(AM|PM|am|pm)?\]\s*(.*)$/
 
 const POLA_SISTEM = [
   /^Pesan dan (telepon|panggilan)/i,
@@ -45,6 +48,11 @@ function cocokkanHeader(line) {
   m = RE_IOS.exec(line)
   if (m) {
     const [, hh, mm, , , d, mo, y, sisa] = m
+    return { tanggal: { y: normTahun(y), m: +mo, d: +d }, jam: +hh, menit: +mm, sisa }
+  }
+  m = RE_IOS_US.exec(line)
+  if (m) {
+    const [, mo, d, y, hh, mm, , , sisa] = m // urutan: BULAN/TANGGAL/tahun
     return { tanggal: { y: normTahun(y), m: +mo, d: +d }, jam: +hh, menit: +mm, sisa }
   }
   return null
