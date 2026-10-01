@@ -42,7 +42,12 @@ export async function getAllRekapSessions({ search = '', state = '', formatId = 
 }
 
 export async function deleteRekapSession(id) {
-  await prisma.rekapSession.delete({ where: { id } })
+  try {
+    await prisma.rekapSession.delete({ where: { id: String(id) } })
+  } catch (error) {
+    if (error.code === 'P2025') throw new Error('Sesi tidak ditemukan')
+    throw error
+  }
 }
 
 // Sengaja GAK nyertain `links` — sesi bisa punya ribuan link, dan halaman detail
@@ -168,11 +173,18 @@ export async function getSessionLinkPlatformIds(sessionId) {
 }
 
 export async function updateRekapSessionInfo(id, { title, dateRange }) {
-  const session = await prisma.rekapSession.update({
-    where: { id },
-    data: { title: title?.trim() || null, dateRange: dateRange?.trim() || null },
-  })
-  return { id: session.id }
+  try {
+    const session = await prisma.rekapSession.update({
+      where: { id: String(id) },
+      data: { title: title?.trim() || null, dateRange: dateRange?.trim() || null },
+    })
+    return { id: session.id }
+  } catch (error) {
+    // @@unique([formatId, title]) di schema
+    if (error.code === 'P2002') throw new Error('Judul ini sudah digunakan oleh sesi lain dengan format yang sama')
+    if (error.code === 'P2025') throw new Error('Sesi tidak ditemukan')
+    throw error
+  }
 }
 
 function findConflictingPlatform(url, selectedPlatformId, allPlatforms) {
@@ -572,7 +584,9 @@ function orderLinks(links, config) {
 }
 
 function buildMustacheContext({ session, stableLinks, displayLinks, pejabat, config }) {
-  const dateFmt = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+ const dateFmt = new Intl.DateTimeFormat('id-ID', {
+   weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta',
+ })
 
   const platformOrder = []
   const unitOrderStable = []

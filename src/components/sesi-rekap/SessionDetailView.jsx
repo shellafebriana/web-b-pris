@@ -48,7 +48,7 @@ export default function SessionDetailView({
               <span className="truncate">{session.format.name}</span>
               <span>·</span>
               <span className="truncate">
-                {new Date(session.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {new Date(session.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jakarta'  })}
               </span>
               {session.dateRange && (
                 <>

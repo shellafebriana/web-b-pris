@@ -14,8 +14,21 @@ export async function getAllPriorityLinksList() {
   }))
 }
 
+export async function getPriorityLinkById(id) {
+  const l = await prisma.priorityLink.findUnique({ where: { id: BigInt(id) } })
+  if (!l) return null
+  return {
+    id: l.id.toString(),
+    keyword: l.keyword,
+    description: l.description,
+    priority: l.priority,
+    isActive: l.isActive,
+  }
+}
+
 export async function createPriorityLink({ keyword, description, isActive }) {
-  if (!keyword) throw new Error('Keyword harus diisi')
+  keyword = typeof keyword === 'string' ? keyword.trim() : ''
+  if (!keyword) throw new Error('Keyword wajib diisi')
 
   try {
     const link = await prisma.priorityLink.create({
@@ -28,6 +41,7 @@ export async function createPriorityLink({ keyword, description, isActive }) {
     return { id: link.id.toString() }
   } catch (error) {
     if (error.code === 'P2002') throw new Error('Keyword ini sudah ada')
+    if (error.code === 'P2025') throw new Error('Link prioritas tidak ditemukan')
     throw error
   }
 }
@@ -50,7 +64,12 @@ export async function updatePriorityLink(id, { keyword, description, priority, i
 }
 
 export async function deletePriorityLink(id) {
-  await prisma.priorityLink.delete({ where: { id: BigInt(id) } })
+  try {
+    await prisma.priorityLink.delete({ where: { id: BigInt(id) } })
+  } catch (error) {
+    if (error.code === 'P2025') throw new Error('Link prioritas tidak ditemukan')
+    throw error
+  }
 }
 
 export async function reorderPriorityLinks(orderedIds) {

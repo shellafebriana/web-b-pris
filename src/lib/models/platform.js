@@ -66,7 +66,7 @@ export async function createPlatform({ name, domain, category }) {
     return { id: platform.id.toString(), name: platform.name }
   } catch (error) {
     if (error.code === 'P2002') {
-      throw new Error('Nama platform ini sudah dipakai')
+      throw new Error('Nama platform ini sudah digunakan')
     }
     throw error
   }
@@ -77,20 +77,36 @@ export async function updatePlatform(id, { name, domain, category }) {
     throw new Error('Kategori harus sosmed atau online')
   }
 
-  const platform = await prisma.platform.update({
-    where: { id: BigInt(id) },
-    data: {
-      name: name || undefined,
-      domain: domain || undefined,
-      category: category || undefined,
-    },
-  })
-
-  return { id: platform.id.toString(), name: platform.name }
+  try {
+    const platform = await prisma.platform.update({
+      where: { id: BigInt(id) },
+      data: {
+        name: name || undefined,
+        domain: domain || undefined,
+        category: category || undefined,
+      },
+    })
+    return { id: platform.id.toString(), name: platform.name }
+  } catch (error) {
+    if (error.code === 'P2002') throw new Error('Nama platform ini sudah digunakan')
+    if (error.code === 'P2025') throw new Error('Platform tidak ditemukan')
+    throw error
+  }
 }
 
 export async function deletePlatform(id) {
-  await prisma.platform.delete({ where: { id: BigInt(id) } })
+  const totalLinks = await prisma.link.count({ where: { platformId: BigInt(id) } })
+  if (totalLinks > 0) {
+    throw new Error(`Platform ini tidak dapat dihapus karena digunakan oleh ${totalLinks} link`)
+  }
+
+  try {
+    await prisma.platform.delete({ where: { id: BigInt(id) } })
+  } catch (error) {
+    if (error.code === 'P2003') throw new Error('Platform ini masih digunakan oleh data sesi rekap, sehingga tidak dapat dihapus')
+    if (error.code === 'P2025') throw new Error('Platform tidak ditemukan')
+    throw error
+  }
 }
 
 export async function getAllPlatformsList() {

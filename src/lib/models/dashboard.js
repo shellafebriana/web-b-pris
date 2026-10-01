@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma'
-import { getMonthRange, getDayRange } from '@/lib/date-helpers'
+import { getMonthRange, getDayRange, tanggalWib } from '@/lib/date-helpers'
 import { parsePeriode } from '@/lib/laporan/periode'
 import {
   getRekapMediaOnline,
@@ -8,7 +8,7 @@ import {
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
 
-async function getActiveFormatIds() {
+export async function getActiveFormatIds() {
   const formats = await prisma.reportFormat.findMany({
     where: { isActive: true },
     select: { id: true }
@@ -29,7 +29,7 @@ async function getUniqueLinkGroupedByDate(formatIds) {
 
   const grouped = {}
   links.forEach(link => {
-    const dateStr = link.createdAt.toISOString().split('T')[0]
+    const dateStr = tanggalWib(link.createdAt)
     if (!grouped[dateStr]) grouped[dateStr] = new Set()
     grouped[dateStr].add(link.url)
   })
@@ -164,6 +164,15 @@ export async function getUnitRankingOnline() {
   }))
 }
 
+export async function getAktivitasBulanIni(formatIds) {
+  const ids = formatIds ?? await getActiveFormatIds()
+  const { indonesiaTime } = getMonthRange()
+  const grouped = await getUniqueLinkGroupedByDate(ids)
+  return {
+    heatmap: buildHeatmap(grouped),
+    weeklyTrend: buildWeeklyTrend(grouped, indonesiaTime.getUTCMonth(), indonesiaTime.getUTCFullYear()),
+  }
+}
 
 export async function getDashboardOverview() {
   const formatIds = await getActiveFormatIds()
