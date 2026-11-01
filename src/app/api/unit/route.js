@@ -49,7 +49,7 @@ export async function GET(req) {
       },
       skip,
       take: limit,
-      orderBy: { [sortBy]: sortOrder },
+      orderBy: { name: 'asc' },
     })
 
     return NextResponse.json(

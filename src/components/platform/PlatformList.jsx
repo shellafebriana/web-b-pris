@@ -105,7 +105,7 @@ export default function PlatformList({ platforms }) {
                   <td className="px-5 py-3 text-right text-sm">
                     <div className="flex items-center justify-end gap-3">
                       <PlatformFormModal mode="edit" platform={platform} />
-                      <DeletePlatformButton id={platform.id} name={platform.name} />
+                      <DeletePlatformButton id={platform.id} name={platform.name} totalLinks={platform.totalLinks} />
                     </div>
                   </td>
                 </tr>

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { verifyToken, getTokenFromHeader } from '@/lib/auth'
 
 export async function GET(req, { params }) {
+  const { id } = await params
   try {
     const authHeader = req.headers.get('authorization')
     const token = getTokenFromHeader(authHeader)
@@ -23,7 +24,7 @@ export async function GET(req, { params }) {
     }
 
     const format = await prisma.reportFormat.findUnique({
-      where: { id: params.id },
+      where: { id: parseInt(id) },
       include: { sessions: true },
     })
 
@@ -48,6 +49,7 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const { id } = await params
   try {
     const authHeader = req.headers.get('authorization')
     const token = getTokenFromHeader(authHeader)
@@ -77,7 +79,7 @@ export async function PUT(req, { params }) {
     const { name, description, template, config, isActive } = await req.json()
 
     const format = await prisma.reportFormat.update({
-      where: { id: params.id },
+      where: { id: parseInt(id) },
       data: {
         name: name || undefined,
         description: description || undefined,
@@ -107,6 +109,7 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const { id } = await params
   try {
     const authHeader = req.headers.get('authorization')
     const token = getTokenFromHeader(authHeader)
@@ -134,7 +137,7 @@ export async function DELETE(req, { params }) {
     }
 
     const format = await prisma.reportFormat.delete({
-      where: { id: params.id },
+      where: { id: parseInt(id) },
     })
 
     return NextResponse.json(

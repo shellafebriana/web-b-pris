@@ -34,8 +34,13 @@ export async function checkImportGroupsAction(formatId, groupSummaries) {
 
 export async function deleteRekapSessionAction(id) {
   await requireAdmin()
-  await deleteRekapSession(id)
+  try {
+    await deleteRekapSession(id)
+  } catch (error) {
+    return { error: error.message }
+  }
   revalidatePath('/sesi-rekap')
+  return { success: true }
 }
 
 export async function updateRekapSessionInfoAction(id, prevState, formData) {

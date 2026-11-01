@@ -52,6 +52,7 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const { id } = await params
   try {
     const authHeader = req.headers.get('authorization')
     const token = getTokenFromHeader(authHeader)
@@ -116,6 +117,7 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const { id } = await params
   try {
     const authHeader = req.headers.get('authorization')
     const token = getTokenFromHeader(authHeader)

@@ -174,6 +174,31 @@ export async function getAktivitasBulanIni(formatIds) {
   }
 }
 
+// Jumlah link media sosial per platform, bulan berjalan. Platform diambil dari
+// kategori 'sosmed' di master, bukan daftar nama yang ditulis tangan.
+export async function getPlatformRankingSosmed(formatIds) {
+  const ids = formatIds ?? await getActiveFormatIds()
+  const { startOfMonth, endOfMonth } = getMonthRange()
+
+  const platforms = await prisma.platform.findMany({
+    where: { category: 'sosmed' },
+    select: {
+      name: true,
+      _count: {
+        select: {
+          links: {
+            where: { session: { createdAt: { gte: startOfMonth, lte: endOfMonth }, formatId: { in: ids } } },
+          },
+        },
+      },
+    },
+  })
+
+  return platforms
+    .sort((a, b) => b._count.links - a._count.links)
+    .map((p, index) => ({ no: index + 1, namaPlatform: p.name, jumlahLink: p._count.links }))
+}
+
 export async function getDashboardOverview() {
   const formatIds = await getActiveFormatIds()
   const { indonesiaTime } = getMonthRange()

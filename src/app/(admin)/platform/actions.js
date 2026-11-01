@@ -51,6 +51,11 @@ export async function updatePlatformAction(id, prevState, formData) {
 
 export async function deletePlatformAction(id) {
   await requireAdmin()
-  await deletePlatform(id)
-  revalidatePath('/platform')
+   try {
+     await deletePlatform(id)
+   } catch (error) {
+     return { error: error.message }
+   }
+   revalidatePath('/platform')
+   return { success: true }
 }

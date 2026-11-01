@@ -46,7 +46,7 @@ export async function GET(req) {
       where,
       skip,
       take: limit,
-      orderBy: { [sortBy]: sortOrder },
+      orderBy: { id: 'asc' },
     })
 
     return NextResponse.json(

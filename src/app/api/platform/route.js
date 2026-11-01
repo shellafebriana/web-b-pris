@@ -1,7 +1,3 @@
-import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { verifyToken, getTokenFromHeader } from '@/lib/auth'
-import { parseQuery } from '@/lib/middleware'
 import { cekAuth, ok, okDaftar, gagal, bacaJson } from '@/lib/api-route'
 import { getAllPlatforms, createPlatform } from '@/lib/models/platform'
 

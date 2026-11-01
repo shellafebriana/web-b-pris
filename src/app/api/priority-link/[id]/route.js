@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { verifyToken, getTokenFromHeader } from '@/lib/auth'
 
 export async function GET(req, { params }) {
+  const { id } = await params
   try {
     const authHeader = req.headers.get('authorization')
     const token = getTokenFromHeader(authHeader)
@@ -23,7 +24,7 @@ export async function GET(req, { params }) {
     }
 
     const link = await prisma.priorityLink.findUnique({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
     })
 
     if (!link) {
@@ -47,6 +48,7 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const { id } = await params
   try {
     const authHeader = req.headers.get('authorization')
     const token = getTokenFromHeader(authHeader)
@@ -76,7 +78,7 @@ export async function PUT(req, { params }) {
     const { keyword, description, priority, isActive } = await req.json()
 
     const link = await prisma.priorityLink.update({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
       data: {
         keyword: keyword || undefined,
         description: description || undefined,
@@ -105,6 +107,7 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  const { id } = await params
   try {
     const authHeader = req.headers.get('authorization')
     const token = getTokenFromHeader(authHeader)
@@ -132,7 +135,7 @@ export async function DELETE(req, { params }) {
     }
 
     const link = await prisma.priorityLink.delete({
-      where: { id: parseInt(params.id) },
+      where: { id: parseInt(id) },
     })
 
     return NextResponse.json(

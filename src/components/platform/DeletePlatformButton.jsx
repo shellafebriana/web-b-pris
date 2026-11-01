@@ -5,20 +5,25 @@ import { TrashBinIcon } from '@/icons'
 import { deletePlatformAction } from '@/app/(admin)/platform/actions'
 import { useToast } from '@/context/ToastProvider'
 
-export default function DeletePlatformButton({ id, name }) {
+export default function DeletePlatformButton({ id, name, totalLinks = 0 }) {
   const [isPending, startTransition] = useTransition()
   const { showToast } = useToast()
+  const dipakai = totalLinks > 0
 
   const handleDelete = () => {
+    if (dipakai) {
+      showToast(`Platform "${name}" tidak dapat dihapus karena digunakan oleh ${totalLinks} link.`, 'error')
+      return
+    }
     if (!confirm(`Hapus platform "${name}"?`)) return
 
     startTransition(async () => {
-      try {
-        await deletePlatformAction(id)
-        showToast(`Platform "${name}" berhasil dihapus`, 'success')
-      } catch (error) {
-        showToast('Gagal menghapus. Platform ini kemungkinan masih dipakai di data link yang ada.', 'error')
-      }
+      const hasil = await deletePlatformAction(id)
+      if (hasil?.error) {
+        showToast(hasil.error, 'error')
+        return
+       }
+      showToast(`Platform "${name}" berhasil dihapus`, 'success')
     })
   }
 
@@ -26,8 +31,8 @@ export default function DeletePlatformButton({ id, name }) {
     <button
       onClick={handleDelete}
       disabled={isPending}
-      title="Hapus platform"
-      className="text-gray-400 hover:text-error-500 disabled:opacity-50"
+      title={dipakai ? `Digunakan oleh ${totalLinks} link` : 'Hapus platform'}
+      className={`disabled:opacity-50 ${dipakai ? 'text-gray-300 dark:text-gray-700' : 'text-gray-400 hover:text-error-500'}`}
     >
       <TrashBinIcon className="size-4" />
     </button>

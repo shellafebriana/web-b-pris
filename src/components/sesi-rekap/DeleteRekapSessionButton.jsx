@@ -14,13 +14,13 @@ export default function DeleteRekapSessionButton({ id, title }) {
     if (!confirm(`Hapus "${label}"? Semua link di dalamnya ikut terhapus.`)) return
 
     startTransition(async () => {
-      try {
-        await deleteRekapSessionAction(id)
-        showToast(`Sesi "${label}" berhasil dihapus`, 'success')
-      } catch (error) {
-        showToast('Gagal menghapus sesi', 'error')
-      }
-    })
+      const hasil = await deleteRekapSessionAction(id)
+      if (hasil?.error) {
+        showToast(hasil.error, 'error')
+        return
+       }
+      showToast(`Sesi "${label}" berhasil dihapus`, 'success')
+      })
   }
 
   return (
