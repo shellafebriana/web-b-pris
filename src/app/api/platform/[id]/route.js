@@ -1,168 +1,47 @@
-import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { verifyToken, getTokenFromHeader } from '@/lib/auth'
+import { cekAuth, ok, gagal, tidakDitemukan, idAngka, bacaJson } from '@/lib/api-route'
+import { getPlatformById, updatePlatform, deletePlatform } from '@/lib/models/platform'
+
+const TIDAK_ADA = 'Platform tidak ditemukan'
 
 export async function GET(req, { params }) {
-  const resolvedParams = await params 
-  const id = resolvedParams.id
+  const auth = cekAuth(req)
+  if (auth.error) return auth.error
+
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = getTokenFromHeader(authHeader)
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const verification = verifyToken(token)
-    if (!verification.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    const platform = await prisma.platform.findUnique({
-      where: { id: parseInt(id) },
-      include: {
-        links: true,
-      },
-    })
-
-    if (!platform) {
-      return NextResponse.json(
-        { error: 'Platform tidak ditemukan' },
-        { status: 404 }
-      )
-    }
-
-    return NextResponse.json(
-      { message: 'Data Platform berhasil diambil', data: platform },
-      { status: 200 }
-    )
+    const id = idAngka((await params).id)
+    const platform = id && await getPlatformById(id)
+    if (!platform) return tidakDitemukan(TIDAK_ADA)
+    return ok(platform, 'Data platform berhasil diambil')
   } catch (error) {
-    console.error('GET Platform detail error:', error)
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan', details: error.message },
-      { status: 500 }
-    )
+    return gagal(error, 'GET Platform detail')
   }
 }
 
 export async function PUT(req, { params }) {
-  const { id } = await params
+  const auth = cekAuth(req, { wajibAdmin: true })
+  if (auth.error) return auth.error
+
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = getTokenFromHeader(authHeader)
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const verification = verifyToken(token)
-    if (!verification.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    if (verification.data.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden - Only admin can update platform' },
-        { status: 403 }
-      )
-    }
-
-    const { name, domain, category } = await req.json()
-
-    if (category && !['sosmed', 'online'].includes(category)) {
-      return NextResponse.json(
-        { error: 'Category harus salah satu dari: sosmed, online' },
-        { status: 400 }
-      )
-    }
-
-    const platform = await prisma.platform.update({
-      where: { id: parseInt(id) },
-      data: {
-        name: name || undefined,
-        domain: domain || undefined,
-        category: category || undefined,
-      },
-    })
-
-    return NextResponse.json(
-      { message: 'Platform berhasil diupdate', data: platform },
-      { status: 200 }
-    )
+    const id = idAngka((await params).id)
+    if (!id) return tidakDitemukan(TIDAK_ADA)
+    const { name, domain, category } = await bacaJson(req)
+    const platform = await updatePlatform(id, { name, domain, category })
+    return ok(platform, 'Platform berhasil diperbarui')
   } catch (error) {
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Platform tidak ditemukan' },
-        { status: 404 }
-      )
-    }
-    console.error('PUT Platform error:', error)
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan', details: error.message },
-      { status: 500 }
-    )
+    return gagal(error, 'PUT Platform')
   }
 }
 
 export async function DELETE(req, { params }) {
-  const { id } = await params
+  const auth = cekAuth(req, { wajibAdmin: true })
+  if (auth.error) return auth.error
+
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = getTokenFromHeader(authHeader)
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const verification = verifyToken(token)
-    if (!verification.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    if (verification.data.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden - Only admin can delete platform' },
-        { status: 403 }
-      )
-    }
-
-    const platform = await prisma.platform.delete({
-      where: { id: parseInt(id) },
-    })
-
-    return NextResponse.json(
-      { message: 'Platform berhasil dihapus', data: platform },
-      { status: 200 }
-    )
+    const id = idAngka((await params).id)
+    if (!id) return tidakDitemukan(TIDAK_ADA)
+    await deletePlatform(id)
+    return ok(null, 'Platform berhasil dihapus')
   } catch (error) {
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Platform tidak ditemukan' },
-        { status: 404 }
-      )
-    }
-    console.error('DELETE Platform error:', error)
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan', details: error.message },
-      { status: 500 }
-    )
+    return gagal(error, 'DELETE Platform')
   }
 }

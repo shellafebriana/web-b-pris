@@ -1,117 +1,34 @@
-import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { verifyToken, getTokenFromHeader } from '@/lib/auth'
-import { parseQuery } from '@/lib/middleware'
-import { createUnit } from '@/lib/models/unit'
+import { cekAuth, ok, okDaftar, gagal, bacaJson } from '@/lib/api-route'
+import { getAllUnitsList, createUnit } from '@/lib/models/unit'
 
+// Unit = master data: diambil semua, filter di memori (sama dengan halaman admin).
 export async function GET(req) {
+  const auth = cekAuth(req)
+  if (auth.error) return auth.error
+
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = getTokenFromHeader(authHeader)
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const verification = verifyToken(token)
-    if (!verification.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      )
-    }
-
     const { searchParams } = new URL(req.url)
-    const { limit, skip, search, sortBy, sortOrder } = parseQuery(searchParams)
+    const search = (searchParams.get('search') || '').toLowerCase()
     const type = searchParams.get('type')
 
-    // Build where clause
-    const where = {}
-    if (search) {
-      where.name = { contains: search }
-    }
-    if (type) {
-      where.type = type
-    }
-
-    // Get total count
-    const total = await prisma.unit.count({ where })
-
-    const units = await prisma.unit.findMany({
-      where,
-      include: {
-        _count: {
-          select: { links: true },
-        },
-      },
-      skip,
-      take: limit,
-      orderBy: { name: 'asc' },
-    })
-
-    return NextResponse.json(
-      {
-        message: 'Data Unit berhasil diambil',
-        pagination: {
-          total,
-          limit,
-          skip,
-          pages: Math.ceil(total / limit),
-        },
-        data: units,
-      },
-      { status: 200 }
+    const units = (await getAllUnitsList()).filter(
+      (u) => (!search || u.name.toLowerCase().includes(search)) && (!type || u.type === type)
     )
+    return okDaftar(units, 'Data unit berhasil diambil', { total: units.length })
   } catch (error) {
-    console.error('GET Unit error:', error)
-    return NextResponse.json(
-      { error: 'Terjadi kesalahan', details: error.message },
-      { status: 500 }
-    )
+    return gagal(error, 'GET Unit')
   }
 }
 
 export async function POST(req) {
+  const auth = cekAuth(req, { wajibAdmin: true })
+  if (auth.error) return auth.error
+
   try {
-    const authHeader = req.headers.get('authorization')
-    const token = getTokenFromHeader(authHeader)
-
-    if (!token) {
-      return NextResponse.json(
-        { error: 'Unauthorized - No token provided' },
-        { status: 401 }
-      )
-    }
-
-    const verification = verifyToken(token)
-    if (!verification.valid) {
-      return NextResponse.json(
-        { error: 'Unauthorized - Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    if (verification.data.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden - Only admin can create unit' },
-        { status: 403 }
-      )
-    }
-
-    const { name, type, domains, aliases, rayon } = await req.json()
-
-    // Validasi dan pembersihan ada di Model, supaya aturannya sama persis
-    // dengan yang dipakai form admin.
+    const { name, type, domains, aliases, rayon } = await bacaJson(req)
     const unit = await createUnit({ name, type, domains, aliases, rayon })
-
-    return NextResponse.json(
-      { message: 'Unit berhasil dibuat', data: unit },
-      { status: 201 }
-    )
+    return ok(unit, 'Unit berhasil dibuat', 201)
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 })
+    return gagal(error, 'POST Unit')
   }
 }
