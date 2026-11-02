@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "prisma:seed": "node prisma/seed.js"
+    "prisma:seed": "node prisma/seed.js",
+    "user:ubah-password": "node scripts/ubah-password.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -15,9 +15,12 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = () => {
       try {
+        localStorage.removeItem('token');
         const savedUser = localStorage.getItem('user');
         if (savedUser) {
-          setUser(JSON.parse(savedUser));
+          const { token: _lama, ...sisa } = JSON.parse(savedUser);
+          if (_lama) localStorage.setItem('user', JSON.stringify(sisa));
+          setUser(sisa);
           setIsAuthenticated(true);
         }
       } catch (err) {
@@ -37,17 +40,14 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const response = await api.login(username, password);
-      const { token, user: userData } = response.data;
+      const { user: userData } = response.data;
 
-      // Save user data ke localStorage
       const userInfo = {
         id: userData.id,
         username: userData.username,
         role: userData.role,
-        token, // Simpan token (alternative jika tidak pakai httpOnly cookie)
       };
       localStorage.setItem('user', JSON.stringify(userInfo));
-      localStorage.setItem('token', token);
       setUser(userInfo);
       setIsAuthenticated(true);
 

@@ -1,20 +1,58 @@
+import crypto from 'node:crypto'
 import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this'
 const TOKEN_EXPIRY = '24h'
+const BCRYPT_COST = 10
+const CADANGAN_DEV = 'dev-only-secret-jangan-dipakai-di-production'
 
 BigInt.prototype.toJSON = function () {
   return this.toString()
 }
 
+// ---------------------------------------------------------------------
+// Kunci JWT
+// ---------------------------------------------------------------------
+// Repo ini publik, jadi kunci cadangan siapa pun bisa membacanya. Di
+// production (Vercel, atau `next start`) JWT_SECRET WAJIB diisi: tanpa itu
+// token tidak dibuat dan tidak diterima, sehingga tidak ada yang bisa login
+// atau memalsukan token. Di `npm run dev` cadangan tetap boleh dipakai supaya
+// pengembangan lokal tidak terhambat.
+//
+// Sengaja dicek saat dipakai, bukan saat file dimuat, supaya `next build`
+// tidak gagal walau variabelnya belum tersedia di tahap build.
+function kunciJwt() {
+  const env = process.env.JWT_SECRET
+  if (env) return env
+  if (process.env.NODE_ENV === 'production') return null
+  return CADANGAN_DEV
+}
+
+let sudahPeringatkan = false
+export function jwtSiap() {
+  const siap = kunciJwt() !== null
+  if (!siap && !sudahPeringatkan) {
+    console.error('[auth] JWT_SECRET belum diisi. Login dinonaktifkan sampai variabel ini diisi di pengaturan environment.')
+    sudahPeringatkan = true
+  }
+  return siap
+}
+
 export function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY })
+  const kunci = kunciJwt()
+  if (!kunci) throw new Error('JWT_SECRET belum diisi')
+  return jwt.sign(payload, kunci, { expiresIn: TOKEN_EXPIRY, algorithm: 'HS256' })
 }
 
 export function verifyToken(token) {
+  const kunci = kunciJwt()
+  if (!kunci) {
+    jwtSiap()
+    return { valid: false, error: 'JWT_SECRET belum diisi' }
+  }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET)
+    const decoded = jwt.verify(token, kunci, { algorithms: ['HS256'] })
     return { valid: true, data: decoded }
   } catch (error) {
     return { valid: false, error: error.message }
@@ -28,18 +66,48 @@ export function getTokenFromHeader(authHeader) {
   return parts[1]
 }
 
-export function hashPassword(password) {
-  // Simple hash - untuk production gunakan bcrypt
-  return Buffer.from(password).toString('base64')
+// ---------------------------------------------------------------------
+// Password
+// ---------------------------------------------------------------------
+// Password lama di database tersimpan sebagai base64 (bukan hash). Migrasi
+// berjalan bertahap: saat login berhasil dengan password lama, route login
+// menyimpan ulang password itu dalam bentuk bcrypt. Akun baru langsung bcrypt.
+
+function formatBcrypt(tersimpan) {
+  return typeof tersimpan === 'string' && /^\$2[aby]\$\d{2}\$/.test(tersimpan)
 }
 
-export function comparePassword(password, hash) {
-  // Simple compare - untuk production gunakan bcrypt
-  return Buffer.from(password).toString('base64') === hash
+export async function hashPassword(password) {
+  return bcrypt.hash(password, BCRYPT_COST)
 }
 
-// Dipakai di Server Component / Server Action buat baca user yang login
-// lewat cookie httpOnly (bukan localStorage, karena server gak bisa akses itu)
+/**
+ * @returns {Promise<{ cocok: boolean, perluUpgrade: boolean }>}
+ *   perluUpgrade = true kalau cocok tapi masih format base64 lama.
+ */
+export async function comparePassword(password, tersimpan) {
+  if (typeof password !== 'string' || typeof tersimpan !== 'string') {
+    return { cocok: false, perluUpgrade: false }
+  }
+
+  if (formatBcrypt(tersimpan)) {
+    return { cocok: await bcrypt.compare(password, tersimpan), perluUpgrade: false }
+  }
+
+  // Format lama. timingSafeEqual supaya lama perbandingan tidak membocorkan
+  // berapa karakter yang sudah benar.
+  const a = Buffer.from(Buffer.from(password).toString('base64'))
+  const b = Buffer.from(tersimpan)
+  const cocok = a.length === b.length && crypto.timingSafeEqual(a, b)
+  return { cocok, perluUpgrade: cocok }
+}
+
+// ---------------------------------------------------------------------
+// User yang sedang login
+// ---------------------------------------------------------------------
+// Dipakai di Server Component / Server Action untuk membaca user yang login
+// lewat cookie httpOnly (bukan localStorage, karena server tidak bisa
+// mengakses localStorage).
 export async function getAuthUser() {
   const cookieStore = await cookies()
   const token = cookieStore.get('token')?.value
