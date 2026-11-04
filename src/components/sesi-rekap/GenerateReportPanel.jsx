@@ -17,7 +17,7 @@ export default function GenerateReportPanel({ sessionId, initialText, hasLinks }
         showToast(result.error, 'error')
       } else {
         setText(result.text)
-        showToast('Laporan berhasil di-generate', 'success')
+        showToast('Laporan berhasil dibuat', 'success')
       }
     })
   }

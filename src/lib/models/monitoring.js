@@ -479,7 +479,7 @@ export async function tambahItemMonitoring(sesiId, daftar, { sumberInput = 'MANU
     const url = normalizeUrlMonitoring(baris.url ?? '')
     const judul = String(baris.judul ?? '').trim().slice(0, 2000)
 
-    if (!isUrlAman(url)) { hasil.gagal.push({ alasan: 'URL tidak valid', teks: judul.slice(0, 60) || url.slice(0, 60) }); continue }
+    if (!isUrlAman(url)) { hasil.gagal.push({ alasan: 'Link tidak valid', teks: judul.slice(0, 60) || url.slice(0, 60) }); continue }
     if (!judul) { hasil.gagal.push({ alasan: 'Judul kosong', teks: url.slice(0, 60) }); continue }
 
     const { kanal, platformId, sumber } = turunkanKanal(url, platforms)

@@ -41,7 +41,7 @@ export default function SalinLinkButton({ targetId, label = 'Salin semua link' }
     const els = wadah ? Array.from(wadah.querySelectorAll('[data-url]')) : []
 
     if (els.length === 0) {
-      showToast('Tidak ada link buat disalin', 'error')
+      showToast('Tidak ada link untuk disalin', 'error')
       return
     }
 
