@@ -165,7 +165,7 @@ export default function PasteBulkForm({
         <div className="flex w-full flex-col border-b border-gray-200 dark:border-gray-800 md:w-1/2 md:border-b-0 md:border-r">
           <div className="p-5 md:flex-1 md:overflow-y-auto">
             <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Tempel URL (satu baris satu link atau langsung dari chat WhatsApp)
+              Tempel link (satu baris satu link atau langsung dari chat WhatsApp)
             </label>
             <textarea
               value={raw}
@@ -178,12 +178,12 @@ export default function PasteBulkForm({
               className="min-h-48 w-full flex-1 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-xs font-mono bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 resize-none"
             />
             <p className="mt-1.5 text-xs text-gray-400">
-              Platform otomatis terdeteksi dari domain URL {platformsRestricted ? ', dibatasi sesuai format sesi ini' : ''}.
+              Platform otomatis terdeteksi dari domain link {platformsRestricted ? ', dibatasi sesuai format sesi ini' : ''}.
               {requiresUnit && ' Unit terdeteksi dari nama pengirim WhatsApp / isi pesan, atau tulis nama unit di barisnya sendiri.'}
             </p>
             {ignoredCount > 0 && (
               <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                {ignoredCount} baris diabaikan (tidak ada URL{requiresUnit ? ' atau nama unit yang dikenali' : ''})
+                {ignoredCount} baris diabaikan (tidak ada link{requiresUnit ? ' atau nama unit yang dikenali' : ''})
               </p>
             )}
             <div className={`mt-4 grid grid-cols-1 gap-4 ${requiresUnit ? 'lg:grid-cols-2' : ''}`}>
@@ -237,7 +237,7 @@ export default function PasteBulkForm({
           <div className="md:flex-1 md:overflow-y-auto">
             {parsedItems.length === 0 ? (
               <div className="flex h-full items-center justify-center text-sm text-gray-300 dark:text-gray-600">
-                Tempel URLdi sebelah kiri...
+                Tempel link di sebelah kiri...
               </div>
             ) : (
               parsedItems.map((item, i) => (
@@ -264,11 +264,11 @@ export default function PasteBulkForm({
                   )}
                   <span className="min-w-0 flex-1 truncate font-mono text-gray-500 dark:text-gray-400">{item.url}</span>
                   {item._isDuplicate && (
-                    <span className="shrink-0 text-gray-400" title="Sudah ada di sesi ini atau ditempel dua kali">duplikat</span>
+                    <span className="shrink-0 text-gray-400" title="Sudah ada di sesi ini">duplikat</span>
                   )}
                   {item._conflictName && (
-                    <span className="shrink-0 text-amber-600 dark:text-amber-400" title={`Kedeteksi dari ${item._conflictName}`}>
-                      ⚠ {item._conflictName}?
+                    <span className="shrink-0 text-amber-600 dark:text-amber-400" title={`Terdeteksi dari ${item._conflictName}`}>
+                      {item._conflictName}?
                     </span>
                   )}
                   {item._unitName && <span className="shrink-0 text-gray-300 dark:text-gray-600">{item._unitName}</span>}

@@ -180,7 +180,7 @@ export default function LinkPrioritasList({ links }) {
         <span className="text-sm text-gray-500 dark:text-gray-400">
           {filtered.length === items.length ? `${items.length} link` : `${filtered.length} dari ${items.length} link`}
         </span>
-        {isFiltering && <span className="text-xs text-gray-400">Reset pencarian/filter buat geser urutan</span>}
+        {isFiltering && <span className="text-xs text-gray-400">Kosongkan pencarian/filter untuk mengubah urutan</span>}
       </div>
 
       <div className="overflow-x-auto">

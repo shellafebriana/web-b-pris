@@ -94,10 +94,10 @@ export default function ImportTxtForm() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {[
               ['Baris dibaca', s.baris],
-              ['URL ditemukan', s.urlDitemukan],
-              ['URL unik', s.urlUnik],
+              ['Link ditemukan', s.urlDitemukan],
+              ['Link unik', s.urlUnik],
               ['Artikel', s.artikel],
-              ['Sudah ada di DB', s.sudahAdaDiDb],
+              ['Sudah ada di Database', s.sudahAdaDiDb],
               ['Akan disimpan', s.akanDisimpan],
             ].map(([label, nilai]) => (
               <div key={label} className="rounded-xl bg-gray-50 p-3 dark:bg-gray-800">
@@ -112,7 +112,7 @@ export default function ImportTxtForm() {
           {preview.ditolakTotal > 0 && (
             <details className="mt-4 rounded-xl border border-warning-200 bg-warning-50 p-3 dark:border-warning-500/30 dark:bg-warning-500/10">
               <summary className="cursor-pointer text-sm font-medium text-warning-700 dark:text-warning-400">
-                {preview.ditolakTotal} link ditolak — klik buat lihat
+                {preview.ditolakTotal} link ditolak — klik untuk melihat alasannya
               </summary>
               <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs text-gray-600 dark:text-gray-400">
                 {preview.ditolak.map((d, i) => (

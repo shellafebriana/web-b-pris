@@ -73,7 +73,7 @@ export default function ViralisasiSpripimList({ sessions, pagination }) {
             {sessions.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                  {tanggal ? 'Gak ada sesi di tanggal ini' : 'Belum ada sesi Manajemen Media Sosial Kapolda'} 
+                  {tanggal ? 'Tidak ada sesi di tanggal ini' : 'Belum ada sesi Manajemen Media Sosial Kapolda'} 
                 </td>
               </tr>
             ) : (
@@ -94,9 +94,6 @@ export default function ViralisasiSpripimList({ sessions, pagination }) {
                   </td>
                   <td className="px-5 py-3 text-sm whitespace-nowrap text-gray-600 dark:text-gray-300">
                     {fmtTanggal(session.tanggal)}
-                    {!session.pakaiContentDate && (
-                      <span className="ml-1 text-xs text-gray-400" title="Sesi ini belum punya tanggal konten, dipakai tanggal dibuat">*</span>
-                    )}
                   </td>
                   <td className="px-5 py-3 text-right text-sm whitespace-nowrap text-gray-800 dark:text-gray-200">
                     {session.totalLinks.toLocaleString('id-ID')}

@@ -90,7 +90,7 @@ export default function LinkFormModal({
 
             <form action={formAction} className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-left text-sm font-medium text-gray-700 dark:text-gray-300">URL</label>
+                <label className="mb-1.5 block text-left text-sm font-medium text-gray-700 dark:text-gray-300">Link</label>
                 <input
                   type="text"
                   name="url"
@@ -102,7 +102,7 @@ export default function LinkFormModal({
                 />
                 {editPlatformMismatch && (
                   <p className="mt-1 text-xs text-error-500">
-                    URL ini terdeteksi dari <strong>{editDetectedPlatform.name}</strong>, bukan{' '}
+                    Link ini terdeteksi dari <strong>{editDetectedPlatform.name}</strong>, bukan{' '}
                     <strong>{link.platform.name}</strong> (platform link ini). 
                   </p>
                 )}
@@ -113,7 +113,7 @@ export default function LinkFormModal({
                   <label className="mb-1.5 block text-left text-sm font-medium text-gray-700 dark:text-gray-300">Platform</label>
                   {allowedPlatforms.length === 0 ? (
                     <p className="text-xs text-error-500">
-                      Format sesi ini gak punya platform valid — cek konfigurasi Format Rekap-nya.
+                      Format sesi ini tidak punya platform yang valid. Periksa konfigurasinya di menu Format Rekap.
                     </p>
                   ) : (
                     <>
@@ -129,7 +129,7 @@ export default function LinkFormModal({
                       </select>
                       {detected && !detectedIsAllowed && (
                         <p className="mt-1 text-xs text-error-500">
-                          ⚠ URL ini terdeteksi dari <strong>{detected.name}</strong>, tapi format sesi ini tidak menerima platform itu — Silahkan ubah URL-nya.
+                          Link ini terdeteksi dari <strong>{detected.name}</strong>, tetapi format sesi ini tidak menerima platform tersebut. Silakan ubah link-nya.
                         </p>
                       )}
                       {detected && detectedIsAllowed && platformId === detected.id && (

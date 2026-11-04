@@ -30,7 +30,7 @@ export function analisisTxt(raw, { units, platforms }) {
     seen.add(norm)
 
     if (!isValidUrl(h.url)) {
-      ditolak.push({ url: h.url, alasan: 'URL tidak valid' }); continue
+      ditolak.push({ url: h.url, alasan: 'Link tidak valid' }); continue
     }
     const unitId = detectUnitIdByUrl(h.url, units)
     if (!unitId) {

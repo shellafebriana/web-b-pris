@@ -11,8 +11,7 @@ export default function TabelRekap({ data, judulCetak, labelJudul, kolomEntitas 
       <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-12 text-center dark:border-gray-700 dark:bg-white/3">
         <p className="font-medium text-gray-700 dark:text-gray-300">Belum ada data</p>
         <p className="mx-auto mt-1 max-w-md text-sm text-gray-500 dark:text-gray-400">
-          Gak ada link untuk periode ini. Coba ganti periode, atau cek apakah sesinya sudah
-          masuk di menu Sesi Rekap.
+          Tidak ada link untuk periode ini. Silakan ganti periode, atau periksa apakah sesinya sudah masuk di menu Sesi Rekap.
         </p>
       </div>
     )

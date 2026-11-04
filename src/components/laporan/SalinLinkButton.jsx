@@ -41,7 +41,7 @@ export default function SalinLinkButton({ targetId, label = 'Salin semua link' }
     const els = wadah ? Array.from(wadah.querySelectorAll('[data-url]')) : []
 
     if (els.length === 0) {
-      showToast('Gak ada link buat disalin', 'error')
+      showToast('Tidak ada link buat disalin', 'error')
       return
     }
 
@@ -73,7 +73,7 @@ export default function SalinLinkButton({ targetId, label = 'Salin semua link' }
         salinViaSeleksi(html)
         showToast(`${els.length} link tersalin`, 'success')
       } catch {
-        showToast('Browser nolak akses clipboard — blok manual lalu Ctrl+C ya', 'error')
+        showToast('Browser menolak akses clipboard. Blok teks secara manual.', 'error')
       }
     } finally {
       setSibuk(false)

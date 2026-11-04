@@ -81,7 +81,7 @@ export default function LaporanPanel({ sesiId, tanggal, formats, formatAktif, te
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-2.5 dark:border-gray-800">
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              Pratinjau — persis seperti yang akan tertempel di WhatsApp
+              Pratinjau 
             </span>
             <span className="text-xs text-gray-400 dark:text-gray-500">
               {teks ? `${teks.length.toLocaleString('id-ID')} karakter` : ''}
@@ -94,10 +94,6 @@ export default function LaporanPanel({ sesiId, tanggal, formats, formatAktif, te
           </pre>
         </div>
       )}
-
-      <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
-        Tanda bintang di teks adalah penanda tebal WhatsApp. Jangan dihapus.
-      </p>
     </div>
   )
 }

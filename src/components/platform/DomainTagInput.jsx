@@ -54,7 +54,7 @@ export default function DomainTagInput({ name = 'domain', defaultValue = [] }) {
           className="min-w-[120px] flex-1 bg-transparent text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none dark:text-white"
         />
       </div>
-      <p className="mt-1.5 text-xs text-gray-400 text-left ">Tekan Enter buat nambahin, klik × buat hapus</p>
+      <p className="mt-1.5 text-xs text-gray-400 text-left ">Tekan Enter untuk menambahkan, klik × untuk menghapus</p>
 
       {/* Ini yang beneran dikirim ke Server Action — array di-encode jadi string JSON */}
       <input type="hidden" name={name} value={JSON.stringify(domains)} />

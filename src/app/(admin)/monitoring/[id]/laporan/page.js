@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth'
 import { getSesiDetail, getFormatMonitoring, generateLaporanMonitoring } from '@/lib/models/monitoring'
 import LaporanPanel from '@/components/monitoring/LaporanPanel'
+import { ChevronLeftIcon } from '@/icons'
 
 export default async function LaporanMonitoringPage({ params, searchParams }) {
   const user = await getAuthUser()
@@ -37,9 +38,9 @@ export default async function LaporanMonitoringPage({ params, searchParams }) {
       <div className="mb-6">
         <Link
           href={`/monitoring/${sesi.id}`}
-          className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
         >
-          &larr; Kembali ke sesi
+          <ChevronLeftIcon className="size-4" /> Kembali ke sesi
         </Link>
         <h1 className="mt-1 text-title-sm font-bold text-gray-800 dark:text-white">
           Laporan Monitoring
@@ -52,8 +53,7 @@ export default async function LaporanMonitoringPage({ params, searchParams }) {
       {formats.length === 0 ? (
         <div className="rounded-2xl border border-warning-200 bg-warning-50 p-5 dark:border-warning-500/30 dark:bg-warning-500/10">
           <p className="text-sm text-warning-700 dark:text-orange-400">
-            Belum ada format monitoring. Buat dulu di menu Format Rekap, lalu tandai
-            format itu sebagai jenis monitoring.
+            Belum ada format monitoring.
           </p>
         </div>
       ) : (

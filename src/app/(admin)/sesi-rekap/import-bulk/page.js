@@ -34,7 +34,7 @@ export default async function ImportBulkPage() {
           </Link>
           <div>
             <h1 className="text-sm font-semibold text-gray-900 dark:text-white">Import Bulk Media Online</h1>
-            <p className="text-xs text-gray-400">Paste dari chat WhatsApp, otomatis dikelompokin per artikel</p>
+            <p className="text-xs text-gray-400">Paste dari chat WhatsApp, otomatis dikelompokkan per artikel</p>
           </div>
         </div>
       </div>

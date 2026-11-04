@@ -37,7 +37,7 @@ export default async function PasteBulkPage({ params }) {
             <ChevronLeftIcon className="size-4" /> Kembali
           </Link>
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold text-gray-900 dark:text-white">Paste Bulk URL</h1>
+            <h1 className="text-sm font-semibold text-gray-900 dark:text-white">Paste Bulk Link</h1>
             <p className="truncate text-xs text-gray-400">{session.title || 'Sesi tanpa judul'}</p>
           </div>
         </div>

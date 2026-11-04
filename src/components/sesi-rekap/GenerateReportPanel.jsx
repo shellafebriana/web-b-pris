@@ -43,7 +43,7 @@ export default function GenerateReportPanel({ sessionId, initialText, hasLinks }
         <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Hasil Laporan</span>
         {text && (
           <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs text-brand-600 dark:bg-brand-500/15 dark:text-brand-400">
-            ✓ Generated
+            Generated
           </span>
         )}
       </div>
@@ -55,7 +55,7 @@ export default function GenerateReportPanel({ sessionId, initialText, hasLinks }
           </pre>
         ) : (
           <p className="py-10 text-center text-sm text-gray-300 dark:text-gray-600">
-            {hasLinks ? 'Klik "Generate Laporan" buat lihat hasilnya' : 'Belum ada link buat di-generate'}
+            {hasLinks ? 'Klik "Generate Laporan" untuk melihat hasilnya' : 'Belum ada link untuk dilaporkan'}
           </p>
         )}
       </div>

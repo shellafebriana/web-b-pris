@@ -166,7 +166,6 @@ export async function getSessionExistingUrls(sessionId) {
 }
 
 // Daftar platformId yang beneran dipake di sesi ini — buat filter pills
-// (biar gak nampilin pilihan platform yang sesi ini emang gak punya link-nya)
 export async function getSessionLinkPlatformIds(sessionId) {
   const grouped = await prisma.link.groupBy({ by: ['platformId'], where: { sessionId } })
   return grouped.map((g) => g.platformId.toString())
@@ -204,8 +203,8 @@ function urlVariants(url) {
 export async function addLinksToSession(sessionId, items) {
   if (!items || items.length === 0) throw new Error('Minimal 1 link harus diisi')
   for (const item of items) {
-    if (!item.url?.trim()) throw new Error('URL tidak boleh kosong')
-    if (!isValidUrl(item.url)) throw new Error(`URL gak valid: ${item.url}`)
+    if (!item.url?.trim()) throw new Error('Link tidak boleh kosong')
+    if (!isValidUrl(item.url)) throw new Error(`Link tidak valid: ${item.url}`)
     if (!item.platformId) throw new Error(`Platform wajib dipilih untuk link: ${item.url}`)
   }
 
@@ -250,13 +249,13 @@ export async function addLinksToSession(sessionId, items) {
 
   if (toInsert.length === 0) {
     if (conflicts.length === 1 && duplicates.length === 0) {
-      throw new Error(`URL ini kedeteksi dari ${conflicts[0].detected}, bukan platform yang dipilih. Cek lagi ya.`)
+      throw new Error(`Link ini terdeteksi sebagai ${conflicts[0].detected}, bukan platform yang dipilih. Periksa kembali pilihan platformnya.`)
     }
     if (conflicts.length > 0) {
-      throw new Error(`${conflicts.length} link platform-nya gak cocok sama domain URL-nya.`)
+      throw new Error(`${conflicts.length} link memiliki platform yang tidak sesuai dengan domainnya.`)
     }
     throw new Error(
-      items.length === 1 ? 'Link ini udah ada di sesi ini' : `Semua ${items.length} link yang di-paste udah ada di sesi ini`
+      items.length === 1 ? 'Link ini sudah ada di sesi ini' : `Semua ${items.length} link yang ditempel sudah ada di sesi ini`
     )
   }
 
@@ -279,8 +278,8 @@ export async function addLinksToSession(sessionId, items) {
 }
 
 export async function updateLink(linkId, sessionId, { url, unitId }) {
-  if (!url?.trim()) throw new Error('URL tidak boleh kosong')
-  if (!isValidUrl(url)) throw new Error('URL gak valid')
+  if (!url?.trim()) throw new Error('Link tidak boleh kosong')
+  if (!isValidUrl(url)) throw new Error('Link tidak valid')
 
   const currentLink = await prisma.link.findFirst({ where: { id: BigInt(linkId), sessionId } })
   if (!currentLink) throw new Error('Link tidak ditemukan di sesi ini')
@@ -289,7 +288,7 @@ export async function updateLink(linkId, sessionId, { url, unitId }) {
   const conflictingUrl = await prisma.link.findFirst({
     where: { sessionId, id: { not: BigInt(linkId) }, url: { in: variants } },
   })
-  if (conflictingUrl) throw new Error('URL ini udah dipakai link lain di sesi ini')
+  if (conflictingUrl) throw new Error('Link ini sudah ada di sesi ini.')
 
   const allPlatforms = (await prisma.platform.findMany()).map((p) => ({
     id: p.id.toString(),
@@ -299,7 +298,7 @@ export async function updateLink(linkId, sessionId, { url, unitId }) {
   const conflict = findConflictingPlatform(url, currentLink.platformId.toString(), allPlatforms)
   if (conflict) {
     throw new Error(
-      `URL ini kedeteksi dari ${conflict.name}, bukan platform link ini. Kalau emang mau ganti platform, hapus link ini terus tambah ulang.`
+      `Link ini terdeteksi sebagai ${conflict.name}, bukan platform yang tercatat. Untuk mengganti platform, hapus link ini lalu tambahkan kembali.`
     )
   }
 
@@ -323,7 +322,7 @@ const WEB_DEFAULT_OPERATOR_WA_ID = process.env.WEB_DEFAULT_OPERATOR_WA_ID
 
 export async function createRekapSession({ formatId, title, dateRange }) {
   if (!formatId) throw new Error('Format wajib dipilih')
-  if (!WEB_DEFAULT_OPERATOR_WA_ID) throw new Error('WEB_DEFAULT_OPERATOR_WA_ID belum di-set di .env')
+  if (!WEB_DEFAULT_OPERATOR_WA_ID) throw new Error('Konfigurasi WEB_DEFAULT_OPERATOR_WA_ID belum diisi di environment variable')
 
   const format = await prisma.reportFormat.findUnique({ where: { id: formatId } })
   if (!format) throw new Error('Format tidak ditemukan')
@@ -349,7 +348,7 @@ export async function createRekapSession({ formatId, title, dateRange }) {
     })
     return { id: session.id }
   } catch (error) {
-    if (error.code === 'P2002') throw new Error('Sudah ada sesi dengan judul yang sama buat format ini')
+    if (error.code === 'P2002') throw new Error('Sudah ada sesi dengan judul yang sama untuk format ini')
     throw error
   }
 }
@@ -411,7 +410,7 @@ async function processGroup(group, formatId, operatorId, config, dateRange, plat
   const invalidPlatformSkipped = urlValidLinks.length - validLinks.length
 
   if (validLinks.length === 0) {
-    throw new Error(`Semua link di "${titleTrimmed || '(tanpa judul)'}" gak valid/gak sesuai format ini`)
+    throw new Error(`Semua link di "${titleTrimmed || '(tanpa judul)'}" tidak valid atau tidak sesuai format ini`)
   }
 
   const seenInBatch = new Set()
@@ -498,7 +497,7 @@ async function processGroup(group, formatId, operatorId, config, dateRange, plat
 }
 
 export async function createBulkRekapSessions(formatId, groups, dateRange) {
-  if (!WEB_DEFAULT_OPERATOR_WA_ID) throw new Error('WEB_DEFAULT_OPERATOR_WA_ID belum di-set di .env')
+  if (!WEB_DEFAULT_OPERATOR_WA_ID) throw new Error('Konfigurasi WEB_DEFAULT_OPERATOR_WA_ID belum diisi di environment variable')
   if (!formatId) throw new Error('Format wajib dipilih')
   if (!groups || groups.length === 0) throw new Error('Minimal 1 grup artikel harus ada')
 
@@ -655,11 +654,11 @@ export async function generateReport(sessionId) {
     },
   })
   if (!session) throw new Error('Sesi tidak ditemukan')
-  if (session.links.length === 0) throw new Error('Belum ada link buat di-generate')
+  if (session.links.length === 0) throw new Error('Belum ada link untuk dijadikan laporan')
 
   const config = session.format.config || {}
   const links = session.links.filter((l) => isPlatformAllowed(l.platform.name, config))
-  if (links.length === 0) throw new Error('Gak ada link yang platform-nya cocok sama daftar platform format ini')
+  if (links.length === 0) throw new Error('Tidak ada link dengan platform yang sesuai dengan daftar platform format ini')
 
   const displayLinks = orderLinks(links, config)
   const pejabat = await getAppConfigValue('nama_kapolresta')
@@ -681,7 +680,7 @@ export async function generateReport(sessionId) {
 }
 
 export async function deleteLinks(linkIds, sessionId) {
-  if (!linkIds || linkIds.length === 0) throw new Error('Gak ada link yang dipilih')
+  if (!linkIds || linkIds.length === 0) throw new Error('Tidak ada link yang dipilih')
 
   let deletedCount = 0
   await prisma.$transaction(async (tx) => {

@@ -75,7 +75,7 @@ export default function SessionMetaCards({ metaCounts, totalLinks }) {
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <MetaCard label="Total link" value={totalLinks} hint="siap di-generate" />
+      <MetaCard label="Total link" value={totalLinks} hint="siap dijadikan laporan" />
       <MetaCard
         label="Link prioritas"
         value={metaCounts.priorityCount || 0}

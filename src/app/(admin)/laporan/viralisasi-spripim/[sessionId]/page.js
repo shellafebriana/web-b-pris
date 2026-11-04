@@ -44,7 +44,6 @@ export default async function DetailViralisasiPage({ params, searchParams }) {
         <h1 className="text-title-sm font-bold text-gray-800 dark:text-white">{ringkasan.judul}</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           {fmtTanggal(ringkasan.tanggal)}
-          {!ringkasan.pakaiContentDate && ' (tanggal dibuat — sesi ini belum punya tanggal konten)'}
           {' · '}
           <span className="font-semibold text-gray-700 dark:text-gray-200">
             {ringkasan.totalLink.toLocaleString('id-ID')} link
@@ -109,7 +108,7 @@ export default async function DetailViralisasiPage({ params, searchParams }) {
                 <h2 className="text-sm font-semibold text-gray-800 dark:text-white">{aktif?.nama}</h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {links.length.toLocaleString('id-ID')} link
-                  {jumlahRusak > 0 && ` · ${jumlahRusak} link formatnya gak valid (gak bisa diklik)`}
+                  {jumlahRusak > 0 && ` · ${jumlahRusak} link formatnya tidak valid (tidak dapat diklik)`}
                 </p>
               </div>
               <SalinLinkButton targetId="daftar-link" />
