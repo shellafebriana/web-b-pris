@@ -595,6 +595,18 @@ function buildMustacheContext({ session, stableLinks, displayLinks, pejabat, con
   }
   const unitOrder = config.shuffle ? shuffleArray(unitOrderStable) : unitOrderStable
 
+  const urutanTag = (Array.isArray(config.requiredPlatform) ? config.requiredPlatform : [])
+    .map((n) => String(n).toLowerCase())
+  const peringkatTag = (nama) => {
+    const i = urutanTag.indexOf(nama.toLowerCase())
+    return i === -1 ? urutanTag.length : i
+  }
+  const platformUrutTag = [...platformOrder].sort((a, b) => peringkatTag(a) - peringkatTag(b))
+  const platformOrderFinal = config.shuffle ? shuffleArray(platformUrutTag) : platformUrutTag
+
+  // Nama platform berhuruf kapital untuk {{NAMA}}.
+  const kapital = (nama) => nama.toLocaleUpperCase('id-ID')
+
   const units = unitOrder.map((unitName) => {
     const unitLinks = displayLinks.filter((l) => l.unit?.name === unitName)
     const platMap = new Map()
@@ -607,13 +619,14 @@ function buildMustacheContext({ session, stableLinks, displayLinks, pejabat, con
       links: unitLinks.map((l) => l.url),
       platformsInUnit: [...platMap.entries()].map(([platformName, plinks]) => ({
         platformName,
+        NAMA: kapital(platformName),
         platformCount: plinks.length,
         links: plinks,
       })),
     }
   })
 
-  const platforms = platformOrder.map((platformName, idx) => {
+  const platforms = platformOrderFinal.map((platformName, idx) => {
     const plinks = displayLinks.filter((l) => l.platform.name === platformName)
     const unitMap2 = new Map()
     for (const l of plinks) {
@@ -623,6 +636,7 @@ function buildMustacheContext({ session, stableLinks, displayLinks, pejabat, con
     }
     return {
       name: platformName,
+      NAMA: kapital(platformName),
       count: plinks.length,
       number: idx + 1,
       letter: String.fromCharCode(65 + idx),
@@ -640,8 +654,8 @@ function buildMustacheContext({ session, stableLinks, displayLinks, pejabat, con
     urls: displayLinks.map((l, i) => `${i + 1}. ${l.url}`),
     units,
     platforms,
-    platformsSummary: platforms.map((p) => ({ name: p.name, count: p.count, letter: p.letter })),
-    platformsDetailed: platforms.map((p) => ({ name: p.name, number: p.number, links: p.links })),
+    platformsSummary: platforms.map((p) => ({ name: p.name, NAMA: p.NAMA, count: p.count, letter: p.letter })),
+    platformsDetailed: platforms.map((p) => ({ name: p.name, NAMA: p.NAMA, number: p.number, links: p.links })),
   }
 }
 

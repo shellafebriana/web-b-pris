@@ -32,27 +32,27 @@ const DUMMY_REKAP = {
       name: 'Polsek Banyuwangi',
       links: ['https://instagram.com/p/bwi-001', 'https://facebook.com/bwi-002'],
       platformsInUnit: [
-        { platformName: 'Instagram', platformCount: 1, links: ['https://instagram.com/p/bwi-001'] },
-        { platformName: 'Facebook', platformCount: 1, links: ['https://facebook.com/bwi-002'] },
+        { platformName: 'Instagram', NAMA: 'INSTAGRAM', platformCount: 1, links: ['https://instagram.com/p/bwi-001'] },
+        { platformName: 'Facebook', NAMA: 'FACEBOOK', platformCount: 1, links: ['https://facebook.com/bwi-002'] },
       ],
     },
     {
       name: 'Polsek Genteng',
       links: ['https://instagram.com/p/gtg-001'],
-      platformsInUnit: [{ platformName: 'Instagram', platformCount: 1, links: ['https://instagram.com/p/gtg-001'] }],
+      platformsInUnit: [{ platformName: 'Instagram', NAMA: 'INSTAGRAM', platformCount: 1, links: ['https://instagram.com/p/gtg-001'] }],
     },
     {
       name: 'Polsek Rogojampi',
       links: ['https://tiktok.com/v/rjm-001', 'https://instagram.com/p/rjm-002'],
       platformsInUnit: [
-        { platformName: 'TikTok', platformCount: 1, links: ['https://tiktok.com/v/rjm-001'] },
-        { platformName: 'Instagram', platformCount: 1, links: ['https://instagram.com/p/rjm-002'] },
+        { platformName: 'TikTok', NAMA: 'TIKTOK', platformCount: 1, links: ['https://tiktok.com/v/rjm-001'] },
+        { platformName: 'Instagram', NAMA: 'INSTAGRAM', platformCount: 1, links: ['https://instagram.com/p/rjm-002'] },
       ],
     },
   ],
   platforms: [
     {
-      name: 'Instagram', count: 3, number: 1, letter: 'A',
+      name: 'Instagram', NAMA: 'INSTAGRAM', count: 3, number: 1, letter: 'A',
       links: ['https://instagram.com/p/bwi-001', 'https://instagram.com/p/gtg-001', 'https://instagram.com/p/rjm-002'],
       unitsInPlatform: [
         { unitName: 'Polsek Banyuwangi', links: ['https://instagram.com/p/bwi-001'] },
@@ -61,24 +61,25 @@ const DUMMY_REKAP = {
       ],
     },
     {
-      name: 'Facebook', count: 1, number: 2, letter: 'B',
+      name: 'Facebook', NAMA: 'FACEBOOK', count: 1, number: 2, letter: 'B',
       links: ['https://facebook.com/bwi-002'],
       unitsInPlatform: [{ unitName: 'Polsek Banyuwangi', links: ['https://facebook.com/bwi-002'] }],
     },
     {
-      name: 'TikTok', count: 1, number: 3, letter: 'C',
+      name: 'TikTok', NAMA: 'TIKTOK', count: 1, number: 3, letter: 'C',
       links: ['https://tiktok.com/v/rjm-001'],
       unitsInPlatform: [{ unitName: 'Polsek Rogojampi', links: ['https://tiktok.com/v/rjm-001'] }],
     },
   ],
   platformsSummary: [
-    { name: 'Instagram', count: 3, letter: 'A' },
-    { name: 'Facebook', count: 1, letter: 'B' },
-    { name: 'TikTok', count: 1, letter: 'C' },
+    { name: 'Instagram', NAMA: 'INSTAGRAM', count: 3, letter: 'A' },
+    { name: 'Facebook', NAMA: 'FACEBOOK', count: 1, letter: 'B' },
+    { name: 'TikTok', NAMA: 'TIKTOK', count: 1, letter: 'C' },
   ],
   platformsDetailed: [
-    { name: 'Instagram', number: 1, links: ['https://instagram.com/p/bwi-001', 'https://instagram.com/p/gtg-001'] },
-    { name: 'Facebook', number: 2, links: ['https://facebook.com/bwi-002'] },
+    { name: 'Instagram', NAMA: 'INSTAGRAM', number: 1, links: ['https://instagram.com/p/bwi-001', 'https://instagram.com/p/gtg-001'] },
+    { name: 'Facebook', NAMA: 'FACEBOOK', number: 2, links: ['https://facebook.com/bwi-002'] },
+    { name: 'TikTok', NAMA: 'TIKTOK', count: 1, number: 3, links: ['https://tiktok.com/v/rjm-001'] },
   ],
 }
 
@@ -162,13 +163,17 @@ const CHIP_REKAP = [
     id: 'platforms', var: '{{#platforms}}\n*{{name}}*\n{{#links}}{{.}}\n{{/links}}\n{{/platforms}}',
     label: '📱 Daftar per platform', cat: 'loop', needs: 'platform',
   },
+  {
+    id: 'namaKapital', var: '{{NAMA}}', label: '🔠 Nama platform kapital', cat: 'info', needs: 'platform',
+    hint: 'Gunakan di dalam blok platform, misalnya {{#platformsSummary}}',
+  },
   { id: 'urls', var: '{{#urls}}{{.}}\n{{/urls}}', label: '🔗 Semua link (tanpa grup)', cat: 'loop', always: true },
   {
     id: 'psum', var: '{{#platformsSummary}}{{letter}}. {{name}} = {{count}}\n{{/platformsSummary}}',
     label: '📊 Ringkasan platform', cat: 'sum', needs: 'platform',
   },
   {
-    id: 'pdet', var: '{{#platformsDetailed}}\n*{{number}}. {{name}}*\n{{#links}}{{.}}\n{{/links}}\n{{/platformsDetailed}}',
+    id: 'pdet', var: '{{#platformsDetailed}}\n*{{name}} : {{count}} link*\n{{#links}}{{.}}\n{{/links}}\n{{/platformsDetailed}}',
     label: '📋 Detail platform dan link', cat: 'sum', needs: 'platform',
   },
   {
