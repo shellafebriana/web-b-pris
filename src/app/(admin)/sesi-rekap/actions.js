@@ -15,6 +15,7 @@ import {
   checkGroupsAgainstExistingSessions,
   deleteLinks,
 } from '@/lib/models/rekapSession'
+import { pastikanFormatHanyaMediaOnline } from '@/lib/models/reportFormat'
 
 async function requireAdmin() {
   const user = await getAuthUser()
@@ -158,6 +159,7 @@ export async function importBulkMediaOnlineAction(prevState, formData) {
   }
 
   try {
+    await pastikanFormatHanyaMediaOnline(formatId)
     const results = await createBulkRekapSessions(formatId, groups, dateRange)
     revalidatePath('/sesi-rekap')
    const succeeded = results.filter((r) => !r.error)

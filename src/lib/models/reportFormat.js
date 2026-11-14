@@ -293,3 +293,44 @@ export async function deleteReportFormat(id) {
     throw error
   }
 }
+
+// ---------------------------------------------------------------------
+// Format khusus media online (untuk Import Bulk di Sesi Rekap)
+// ---------------------------------------------------------------------
+// Format yang SEMUA platformnya berkategori media online, tanpa media sosial.
+
+async function petaKategoriPlatform() {
+  const rows = await prisma.platform.findMany({ select: { name: true, category: true } })
+  return new Map(rows.map((p) => [p.name.toLowerCase(), p.category]))
+}
+
+// Platform yang tidak ada di master dianggap bukan media online, supaya
+// format dengan data platform yang tidak dikenal tidak ikut lolos.
+function hanyaMediaOnline(config, kategoriPerNama) {
+  const daftar = Array.isArray(config?.requiredPlatform) ? config.requiredPlatform : []
+  return daftar.length > 0 && daftar.every((n) => kategoriPerNama.get(String(n).toLowerCase()) === 'online')
+}
+
+export async function getFormatsHanyaMediaOnline() {
+  const [formats, kategoriPerNama] = await Promise.all([
+    getAllReportFormatsList({ jenis: JENIS_REKAP }),
+    petaKategoriPlatform(),
+  ])
+  return formats.filter((f) => f.isActive && hanyaMediaOnline(f.config, kategoriPerNama))
+}
+
+// Dipanggil action Import Bulk sebelum menyimpan, supaya aturan yang sama
+// juga berlaku walau isi form diubah lewat DevTools.
+export async function pastikanFormatHanyaMediaOnline(formatId) {
+  const format = await prisma.reportFormat.findUnique({
+    where: { id: String(formatId ?? '') },
+    select: { config: true, isActive: true },
+  })
+  if (!format) throw new Error('Format tidak ditemukan')
+  if (!format.isActive || jenisFormat(format.config) !== JENIS_REKAP) {
+    throw new Error('Format ini tidak dapat digunakan untuk Import Bulk')
+  }
+  if (!hanyaMediaOnline(format.config, await petaKategoriPlatform())) {
+    throw new Error('Import Bulk hanya dapat digunakan untuk format yang seluruh platformnya media online')
+  }
+}

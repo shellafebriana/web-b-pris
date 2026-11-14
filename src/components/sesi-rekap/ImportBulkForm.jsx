@@ -217,7 +217,7 @@ export default function ImportBulkForm({ formats, platforms, units }) {
                 onChange={(e) => setFormatId(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500"
               >
-                {formats.length === 0 && <option value="">— tidak ada format media online —</option>}
+                {formats.length === 0 && <option value="">— belum ada format yang seluruh platformnya media online —</option>}
                 {formats.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>

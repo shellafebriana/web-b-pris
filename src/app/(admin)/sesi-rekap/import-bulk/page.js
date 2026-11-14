@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getAuthUser } from '@/lib/auth'
-import { getAllReportFormatsList } from '@/lib/models/reportFormat'
+import { getFormatsHanyaMediaOnline } from '@/lib/models/reportFormat'
 import { getAllPlatformsList } from '@/lib/models/platform'
 import { getAllUnitsList } from '@/lib/models/unit'
 import { ChevronLeftIcon } from '@/icons'
@@ -11,16 +11,11 @@ export default async function ImportBulkPage() {
   const user = await getAuthUser()
   if (!user || user.role !== 'admin') redirect('/login')
 
-  const [formats, platforms, units] = await Promise.all([
-    getAllReportFormatsList({ jenis: 'rekap' }),
+  const [onlineFormats, platforms, units] = await Promise.all([
+    getFormatsHanyaMediaOnline(),
     getAllPlatformsList(),
     getAllUnitsList(),
   ])
-
-  // Filter format yang namanya mengandung "media online" (case-insensitive)
-  const onlineFormats = formats.filter(
-    (f) => f.isActive && f.name.toLowerCase().includes('media online')
-  )
 
   return (
     <div className="fixed inset-0 z-999999 flex flex-col overflow-hidden bg-gray-50 dark:bg-gray-950">
