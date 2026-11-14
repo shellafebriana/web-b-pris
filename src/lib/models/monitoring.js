@@ -731,7 +731,8 @@ const judulHashDari = (sumberNama, judul) =>
     .update(`${sumberNama ?? ''}|${String(judul).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()}`)
     .digest('hex')
 
-export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) {
+export async function tarikKandidat({ sumberId = null, batasSumber = 25, batasWaktuMs = null  } = {}) {
+  const mulai = Date.now()
   const { tarikSatuSumber } = await import('@/lib/monitoring/crawler')
 
   // Bersihkan dulu supaya tabel menjaga ukurannya sendiri.
@@ -755,7 +756,7 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
     take: sumberId ? 1 : batasSumber,
     orderBy: { lastRunAt: 'asc' },
   })
-  if (sumber.length === 0) return { sumber: 0, baru: 0, duplikat: 0 }
+  if (sumber.length === 0) return { sumber: 0, baru: 0, duplikat: 0, dilewati: 0  }
 
   const kwRow = await prisma.appConfig.findUnique({
     where: { key: 'monitoring.keyword_relevansi' },
@@ -769,8 +770,12 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
 
   let baru = 0
   let duplikat = 0
+  let diproses = 0
 
   for (const s of sumber) {
+    if (batasWaktuMs && Date.now() - mulai > batasWaktuMs) break
+    diproses++
+
     let status = 'ok'
     let gagal = 0
     let pesanGagal = null
@@ -833,7 +838,7 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25 } = {}) 
     })
   }
 
-  return { sumber: sumber.length, baru, duplikat }
+  return { sumber: sumber.length, baru, duplikat, dilewati: sumber.length - diproses }
 }
 
 // Resolve dilakukan DI SINI — hanya untuk kandidat yang benar-benar dipilih.
