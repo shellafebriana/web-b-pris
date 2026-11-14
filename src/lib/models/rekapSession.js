@@ -655,7 +655,7 @@ function buildMustacheContext({ session, stableLinks, displayLinks, pejabat, con
     units,
     platforms,
     platformsSummary: platforms.map((p) => ({ name: p.name, NAMA: p.NAMA, count: p.count, letter: p.letter })),
-    platformsDetailed: platforms.map((p) => ({ name: p.name, NAMA: p.NAMA, number: p.number, links: p.links })),
+    platformsDetailed: platforms.map((p) => ({ name: p.name, NAMA: p.NAMA, count: p.count, number: p.number, links: p.links }))
   }
 }
 

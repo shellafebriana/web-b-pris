@@ -77,8 +77,8 @@ const DUMMY_REKAP = {
     { name: 'TikTok', NAMA: 'TIKTOK', count: 1, letter: 'C' },
   ],
   platformsDetailed: [
-    { name: 'Instagram', NAMA: 'INSTAGRAM', number: 1, links: ['https://instagram.com/p/bwi-001', 'https://instagram.com/p/gtg-001'] },
-    { name: 'Facebook', NAMA: 'FACEBOOK', number: 2, links: ['https://facebook.com/bwi-002'] },
+    { name: 'Instagram', NAMA: 'INSTAGRAM', count: 3, number: 1, links: ['https://instagram.com/p/bwi-001', 'https://instagram.com/p/gtg-001', 'https://instagram.com/p/rjm-002'] },
+    { name: 'Facebook', NAMA: 'FACEBOOK', count: 1, number: 2, links: ['https://facebook.com/bwi-002'] },
     { name: 'TikTok', NAMA: 'TIKTOK', count: 1, number: 3, links: ['https://tiktok.com/v/rjm-001'] },
   ],
 }
