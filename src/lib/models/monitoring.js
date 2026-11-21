@@ -774,6 +774,22 @@ const judulHashDari = (sumberNama, judul) =>
     .update(`${sumberNama ?? ''}|${String(judul).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()}`)
     .digest('hex')
 
+async function perbaruiEngagementIg(k, judulHash) {
+  const data = {
+    likeCount: k.likeCount ?? null,
+    commentCount: k.commentCount ?? null,
+    engagementAt: k.engagementAt ?? new Date(),
+    ...(k.caption ? { caption: k.caption } : {}),
+  }
+  const [kandidat, item] = await Promise.all([
+    prisma.monitoringKandidat.updateMany({ where: { judulHash }, data }),
+    k.urlAsli
+      ? prisma.monitoringItem.updateMany({ where: { urlHash: hashUrl(k.urlAsli) }, data })
+      : Promise.resolve({ count: 0 }),
+  ])
+  return kandidat.count + item.count
+}
+
 export async function tarikKandidat({ sumberId = null, batasSumber = 25, batasWaktuMs = null  } = {}) {
   const mulai = Date.now()
   const { tarikSatuSumber } = await import('@/lib/monitoring/crawler')
@@ -822,6 +838,7 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25, batasWa
     let status = 'ok'
     let gagal = 0
     let pesanGagal = null
+    let diperbarui = 0
     try {
       const { kandidat, status: st } = await tarikSatuSumber(s, keyword)
       status = st
@@ -838,7 +855,18 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25, batasWa
             where: { urlHash: hashUrl(k.urlAsli) },
             select: { id: true },
           })
-          if (sudah) { duplikat++; continue }
+          if (sudah) {
+            duplikat++
+            if (k.kunciUnik?.startsWith('ig:')) {
+              try {
+                if (await perbaruiEngagementIg(k, judulHash)) diperbarui++
+              } catch (e) {
+                gagal++
+                pesanGagal ??= e.message
+              }
+            }
+            continue
+          }
         }
 
         const { kanal } = turunkanKanal(k.urlAsli ?? `https://${k.sumberNama}`, platforms)
@@ -867,13 +895,23 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25, batasWa
           })
           baru++
         } catch (e) {
-          if (e.code === 'P2002') duplikat++
-          else {
+          if (e.code === 'P2002') {
+            duplikat++
+            if (k.kunciUnik?.startsWith('ig:')) {
+              try {
+                if (await perbaruiEngagementIg(k, judulHash)) diperbarui++
+              } catch (e2) {
+                gagal++
+                pesanGagal ??= e2.message
+              }
+            }
+          } else {
             gagal++
             pesanGagal ??= e.message
           }
         }
       }
+      if (diperbarui) status += `, ${diperbarui} diperbarui`
       if (gagal) status += `, ${gagal} gagal (${String(pesanGagal).slice(0, 80)})`
     } catch (e) {
       status = `error: ${e.message}`.slice(0, 200)

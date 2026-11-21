@@ -194,6 +194,11 @@ html, body {
   body {
     @apply relative font-normal font-outfit z-1 bg-gray-50;
   }
+
+  .dark input[type="checkbox"],
+  .dark input[type="radio"] {
+    color-scheme: dark;
+  }
 }
 
 @utility menu-item {
@@ -769,3 +774,4 @@ span.flatpickr-weekday,
 .toast-enter {
   animation: toast-slide-in 0.25s ease-out;
 }
+
