@@ -1,11 +1,8 @@
 import { redirect } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth'
-import { getBulanTersedia, getSesiPerBulan } from '@/lib/models/monitoring'
 import { getDayRange } from '@/lib/date-helpers'
 import MonitoringSesiList from '@/components/monitoring/MonitoringSesiList'
 import Link from 'next/link'
-
-const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 
 function bulanIni() {
   const { startOfDay } = getDayRange()
@@ -24,7 +21,6 @@ export default async function MonitoringPage({ searchParams }) {
 
   const params = await searchParams
   const bulan = bulanDiminta(params?.bulan, bulanIni())
-  const [y, m] = bulan.split('-').map(Number)
 
   const { hasil, ringkas } = await getSesiPerBulan(bulan)
 
