@@ -5,9 +5,17 @@ import { getDayRange } from '@/lib/date-helpers'
 import MonitoringSesiList from '@/components/monitoring/MonitoringSesiList'
 import Link from 'next/link'
 
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
+
 function bulanIni() {
   const { startOfDay } = getDayRange()
   return new Date(startOfDay.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 7)
+}
+
+function bulanDiminta(nilai, bulanDefault) {
+  if (typeof nilai !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(nilai)) return bulanDefault
+  if (nilai < '2020-01' || nilai > bulanDefault) return bulanDefault
+  return nilai
 }
 
 export default async function MonitoringPage({ searchParams }) {
@@ -15,16 +23,8 @@ export default async function MonitoringPage({ searchParams }) {
   if (!user || user.role !== 'admin') redirect('/login')
 
   const params = await searchParams
-  const daftarBulan = await getBulanTersedia()
-
-  // Whitelist: hanya terima bulan yang benar-benar ada datanya, atau bulan ini.
-  const bulanDefault = bulanIni()
-  const diminta = params?.bulan
-  const bulan =
-    typeof diminta === 'string' && /^\d{4}-\d{2}$/.test(diminta) &&
-    (daftarBulan.includes(diminta) || diminta === bulanDefault)
-      ? diminta
-      : (daftarBulan[0] ?? bulanDefault)
+  const bulan = bulanDiminta(params?.bulan, bulanIni())
+  const [y, m] = bulan.split('-').map(Number)
 
   const { hasil, ringkas } = await getSesiPerBulan(bulan)
 
@@ -50,8 +50,6 @@ export default async function MonitoringPage({ searchParams }) {
       <MonitoringSesiList
         daftar={hasil}
         ringkas={ringkas}
-        bulan={bulan}
-        daftarBulan={daftarBulan.includes(bulanDefault) ? daftarBulan : [bulanDefault, ...daftarBulan]}
       />
     </div>
   )

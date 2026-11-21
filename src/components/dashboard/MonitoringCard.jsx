@@ -28,7 +28,7 @@ const MonitoringCard = ({ data }) => {
       nilai: statusTeks,
       nilaiKelas: statusWarna,
       catatan: d.adaSesi
-        ? `${formatNumber(d.totalItem)} item${d.perluReview > 0 ? ` · ${formatNumber(d.perluReview)} perlu review` : ''}`
+        ? `${formatNumber(d.totalItem)} item${d.perluReview > 0 ? ` · ${formatNumber(d.perluReview)} perlu ditinjau` : ''}`
         : 'Belum dibuat',
       icon: 'DocsIcon',
     },

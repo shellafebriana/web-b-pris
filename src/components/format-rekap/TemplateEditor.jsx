@@ -289,6 +289,7 @@ export default function TemplateEditor({
     return aktif.length ? Object.keys(NAMA_KANAL).filter((k) => !aktif.includes(k)) : []
   })
   const [tampilkanNihil, setTampilkanNihil] = useState(config.tampilkanNihil !== false)
+  const [tampilkanPrompt, setTampilkanPrompt] = useState(config.tampilkanPrompt === true)
   const [dikecualikan, setDikecualikan] = useState(
     Array.isArray(config.kategoriDikecualikan) ? config.kategoriDikecualikan : []
   )
@@ -428,7 +429,7 @@ export default function TemplateEditor({
   }
 
   const configPayload = isMonitoring
-    ? { jenis: JENIS_MONITORING, kanalAktif, tampilkanNihil, kategoriDikecualikan: dikecualikan }
+    ? { jenis: JENIS_MONITORING, kanalAktif, tampilkanNihil, kategoriDikecualikan: dikecualikan, tampilkanPrompt }
     : {
         jenis: JENIS_REKAP,
         ...cfg,
@@ -564,6 +565,9 @@ export default function TemplateEditor({
               </div>
               <div className="mt-2">
                 <ToggleItem label="Tampilkan kategori nihil" active={tampilkanNihil} onToggle={() => setTampilkanNihil((v) => !v)} />
+              </div>
+              <div className="mt-2">
+                <ToggleItem label="Tampilkan prompt Patroli Digital" active={tampilkanPrompt} onToggle={() => setTampilkanPrompt((v) => !v)} />
               </div>
             </div>
 

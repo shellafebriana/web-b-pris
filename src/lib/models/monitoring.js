@@ -153,6 +153,44 @@ export async function getIsuPalingDisorot({ hari = 7, batas = 5 } = {}) {
 }
 
 // ---------------------------------------------------------------------
+// Isu beberapa hari sebelum tanggal sesi — bahan deduplikasi di prompt
+// Patroli Digital. Sementara dari klaster; nanti dari hasil Temuan Isu.
+// ---------------------------------------------------------------------
+export async function getIsuSebelumnya(tanggal, { hari = 3, batas = 5 } = {}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(tanggal))) throw new Error('Format tanggal tidak valid')
+  const n = Number.isInteger(hari) && hari >= 1 && hari <= 7 ? hari : 3
+
+  const hariIni = new Date(`${tanggal}T00:00:00.000+07:00`)
+  if (Number.isNaN(hariIni.getTime())) throw new Error('Tanggal tidak valid')
+  const satuHari = 24 * 60 * 60 * 1000
+  const mulai = new Date(hariIni.getTime() - n * satuHari)
+  const kemarin = new Date(hariIni.getTime() - satuHari)
+
+  const tanggalDicari = new Set()
+  for (let d = 1; d <= n; d++) tanggalDicari.add(tanggalWib(new Date(hariIni.getTime() - d * satuHari)))
+
+  // firstDate/lastDate disimpan sebagai pukul 00.00 WIB, jadi rentang ini
+  // menangkap isu yang hidup di salah satu hari sebelum tanggal sesi.
+  const rows = await prisma.monitoringIsu.findMany({
+    where: { firstDate: { lte: kemarin }, lastDate: { gte: mulai } },
+    orderBy: [{ skor: 'desc' }, { lastDate: 'desc' }],
+    take: batas * 4,
+    select: { judul: true, hitungPerHari: true },
+  })
+
+  const hasil = []
+  for (const r of rows) {
+    const hitung = r.hitungPerHari && typeof r.hitungPerHari === 'object' ? r.hitungPerHari : {}
+    const dalam = Object.keys(hitung).filter((t) => tanggalDicari.has(t)).sort()
+    if (dalam.length === 0) continue
+    hasil.push({ tanggal: dalam[dalam.length - 1], judul: r.judul })
+    if (hasil.length >= batas) break
+  }
+  // Urut tanggal terbaru dulu supaya mudah dibaca di prompt.
+  return hasil.sort((a, b) => b.tanggal.localeCompare(a.tanggal))
+}
+
+// ---------------------------------------------------------------------
 // Kartu 6: media paling sering memberitakan
 // ---------------------------------------------------------------------
 export async function getMediaTeratas({ batas = 6 } = {}) {
@@ -285,17 +323,6 @@ export async function getSesiPerBulan(bulan) {
     orderBy: { contentDate: 'desc' },
   })
 
-  // Hitung item perlu review sekali untuk semua sesi bulan itu, bukan
-  // per baris (hindari N+1).
-  let petaReview = new Map()
-  if (sesi.length > 0) {
-    const grup = await prisma.monitoringItem.groupBy({
-      by: ['sesiId'],
-      where: { sesiId: { in: sesi.map((s) => s.id) }, isReviewed: false },
-      _count: { _all: true },
-    })
-    petaReview = new Map(grup.map((g) => [g.sesiId, angka(g._count._all)]))
-  }
 
   const petaSesi = new Map(sesi.map((s) => [tanggalWib(s.contentDate), s]))
 
@@ -311,7 +338,6 @@ export async function getSesiPerBulan(bulan) {
       totalOnline: s?.totalOnline ?? 0,
       totalSosmed: s?.totalSosmed ?? 0,
       totalItem: (s?.totalOnline ?? 0) + (s?.totalSosmed ?? 0),
-      perluReview: s ? (petaReview.get(s.id) ?? 0) : 0,
     })
   }
 
@@ -320,7 +346,6 @@ export async function getSesiPerBulan(bulan) {
     jumlahHari,
     totalOnline: sesi.reduce((a, s) => a + s.totalOnline, 0),
     totalSosmed: sesi.reduce((a, s) => a + s.totalSosmed, 0),
-    totalReview: [...petaReview.values()].reduce((a, b) => a + b, 0),
   }
 
   return { hasil, ringkas }
@@ -454,6 +479,23 @@ async function sinkronTotal(sesiId) {
   })
 }
 
+// Caption & engagement HANYA diterima dari jalur crawler (dipanggil server
+// lewat ambilKandidat). Input manual/paste berasal dari klien, jadi nilai
+// ini tidak dipercaya dan selalu dikosongkan.
+function dataEngagement(baris, sumberInput) {
+  if (sumberInput !== 'CRAWLER') return {}
+  const bulat = (n) => (Number.isInteger(n) && n >= 0 && n <= 2147483647 ? n : null)
+  const tgl = baris.engagementAt instanceof Date && !Number.isNaN(baris.engagementAt.getTime())
+    ? baris.engagementAt
+    : null
+  return {
+    caption: typeof baris.caption === 'string' && baris.caption ? baris.caption.slice(0, 5000) : null,
+    likeCount: bulat(baris.likeCount),
+    commentCount: bulat(baris.commentCount),
+    engagementAt: tgl,
+  }
+}
+
 // Dipakai input manual DAN paste bulk. Mengembalikan ringkasan, bukan throw,
 // supaya sebagian baris gagal tidak menggagalkan seluruhnya.
 export async function tambahItemMonitoring(sesiId, daftar, { sumberInput = 'MANUAL' } = {}) {
@@ -509,6 +551,7 @@ export async function tambahItemMonitoring(sesiId, daftar, { sumberInput = 'MANU
       sumberInput, confidence,
       isReviewed: Boolean(dipilih),
       urutan: urutan++,
+      ...dataEngagement(baris, sumberInput),
     })
   }
 
@@ -627,7 +670,7 @@ export async function getFormatMonitoring() {
   })
   return rows
     .filter((r) => r.config && typeof r.config === 'object' && r.config.jenis === 'monitoring')
-    .map((r) => ({ id: r.id, name: r.name }))
+    .map((r) => ({ id: r.id, name: r.name, tampilkanPrompt: r.config.tampilkanPrompt === true }))
 }
 
 export async function getKategoriMonitoringList() {
@@ -812,6 +855,10 @@ export async function tarikKandidat({ sumberId = null, batasSumber = 25, batasWa
               googleId: k.googleId ?? null,
               urlAsli: k.urlAsli ?? null,
               terbitAt: k.terbitAt,
+              caption: k.caption ?? null,
+              likeCount: k.likeCount ?? null,
+              commentCount: k.commentCount ?? null,
+              engagementAt: k.engagementAt ?? null,
               kanal: kanal ?? 'ONLINE',
               sumberNama: k.sumberNama,
               saranKode: saran.kategoriId ? (petaKode.get(saran.kategoriId) ?? null) : null,
@@ -852,6 +899,8 @@ export async function ambilKandidat(sesiId, daftarId, petaKategori = {}) {
     select: {
       id: true, judul: true, url: true, urlAsli: true,
       googleId: true, sumberNama: true, saranKode: true,
+      caption: true, likeCount: true, commentCount: true, engagementAt: true,
+
     },
   })
   if (rows.length === 0) return { masuk: 0, duplikat: 0, gagal: [] }
@@ -898,6 +947,10 @@ export async function ambilKandidat(sesiId, daftarId, petaKategori = {}) {
         judul: r.judul,
         url,
         kategoriId: kode ? (petaKode.get(kode)?.toString() ?? null) : null,
+        caption: r.caption,
+        likeCount: r.likeCount,
+        commentCount: r.commentCount,
+        engagementAt: r.engagementAt,
       })
     }))
   }
@@ -979,67 +1032,8 @@ export async function tolakKandidat(daftarId) {
 }
 
 // ---------------------------------------------------------------------
-// Daftar item yang perlu direview (lintas sesi)
+// Penanda item yang kategorinya sudah dicek (dipakai di detail sesi)
 // ---------------------------------------------------------------------
-export async function getItemPerluReview({ page = 1, limit = 30, bulan = null } = {}) {
-  const skip = (Math.max(1, page) - 1) * limit
-
-  let filterSesi = {}
-  if (bulan && /^\d{4}-\d{2}$/.test(bulan)) {
-    const [y, m] = bulan.split('-').map(Number)
-    const hari = new Date(Date.UTC(y, m, 0)).getUTCDate()
-    filterSesi = {
-      sesi: {
-        contentDate: {
-          gte: new Date(`${bulan}-01T00:00:00.000+07:00`),
-          lte: new Date(`${bulan}-${String(hari).padStart(2, '0')}T23:59:59.999+07:00`),
-        },
-      },
-    }
-  }
-
-  const where = { isReviewed: false, ...filterSesi }
-
-  const [rows, total, kategori] = await Promise.all([
-    prisma.monitoringItem.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: [{ sesiId: 'asc' }, { urutan: 'asc' }],
-      select: {
-        id: true, judul: true, url: true, kanal: true, sumber: true,
-        kategoriId: true, confidence: true, sumberInput: true,
-        sesi: { select: { id: true, contentDate: true, state: true } },
-      },
-    }),
-    prisma.monitoringItem.count({ where }),
-    prisma.monitoringKategori.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
-      select: { id: true, kode: true, nama: true, sortOrder: true },
-    }),
-  ])
-
-  return {
-    data: rows.map((r) => ({
-      id: r.id.toString(),
-      judul: r.judul,
-      url: r.url,
-      kanal: r.kanal,
-      sumber: r.sumber,
-      kategoriId: r.kategoriId.toString(),
-      confidence: r.confidence,
-      sumberInput: r.sumberInput,
-      sesiId: r.sesi.id,
-      tanggal: tanggalWib(r.sesi.contentDate),
-      sesiFinal: r.sesi.state === 'final',
-    })),
-    kategori: kategori.map((k) => ({
-      id: k.id.toString(), kode: k.kode, nama: k.nama, sortOrder: k.sortOrder,
-    })),
-    pagination: { page, limit, total, totalPage: Math.ceil(total / limit) },
-  }
-}
 
 // Tandai benar tanpa mengubah kategorinya — untuk item yang saran sistemnya
 // ternyata sudah tepat.

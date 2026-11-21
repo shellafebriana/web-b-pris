@@ -351,6 +351,12 @@ export async function tarikInstagramDiscovery(sumber, keyword = KEYWORD_BAWAAN) 
   return petakanMediaIg(media, `@${bd.username ?? akun}`, sumber, keyword)
 }
 
+// Angka dari API dianggap sah hanya kalau bilangan bulat >= 0 dan muat di
+// kolom INT MySQL.
+function angkaEngagement(n) {
+  return Number.isInteger(n) && n >= 0 && n <= 2147483647 ? n : null
+}
+
 // Dipakai jalur akun sendiri MAUPUN Business Discovery — bentuk media-nya sama.
 function petakanMediaIg(media, namaAkun, sumber, keyword) {
   const kandidat = []
@@ -385,6 +391,10 @@ function petakanMediaIg(media, namaAkun, sumber, keyword) {
       terbitAt,
       sumberNama: namaAkun.slice(0, 120),
       kunciUnik: `ig:${m.id}`,
+      caption: typeof m.caption === 'string' && m.caption.trim() ? m.caption.slice(0, 5000) : null,
+      likeCount: angkaEngagement(m.like_count),
+      commentCount: angkaEngagement(m.comments_count),
+      engagementAt: new Date(),
     })
   }
 

@@ -72,7 +72,6 @@ export async function ubahKategoriAction(itemId, kategoriId, sesiId) {
   try {
     await ubahKategoriItem(itemId, kategoriId)
     revalidatePath(`/monitoring/${sesiId}`)
-    revalidatePath('/monitoring/review')
     return { sukses: true }
   } catch (error) {
     return { error: error.message }
@@ -150,21 +149,6 @@ export async function tolakKandidatAction(daftarId) {
   }
 }
 
-export async function tandaiReviewAction(daftarId) {
-  await requireAdmin()
-  try {
-    if (!Array.isArray(daftarId) || daftarId.length === 0) {
-      return { error: 'Belum ada item yang dipilih' }
-    }
-    await tandaiSudahReview(daftarId)
-    revalidatePath('/monitoring/review')
-    revalidatePath('/monitoring')
-    return { sukses: true }
-  } catch (error) {
-    return { error: error.message }
-  }
-}
-
 export async function ubahItemAction(itemId, sesiId, prevState, formData) {
   await requireAdmin()
   try {
@@ -173,7 +157,6 @@ export async function ubahItemAction(itemId, sesiId, prevState, formData) {
       url: formData.get('url'),
     })
     revalidatePath(`/monitoring/${sesiId}`)
-    revalidatePath('/monitoring/review')
     return { sukses: 'Item diperbarui' }
   } catch (error) {
     return { error: error.message }

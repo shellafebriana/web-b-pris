@@ -1,7 +1,14 @@
 import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth'
-import { getSesiDetail, getFormatMonitoring, generateLaporanMonitoring } from '@/lib/models/monitoring'
+import {
+  getSesiDetail,
+  getFormatMonitoring,
+  generateLaporanMonitoring,
+  getIsuSebelumnya,
+} from '@/lib/models/monitoring'
+import { getMasterPrompt } from '@/lib/models/promptPatroli'
+import { susunPromptPatroli } from '@/lib/monitoring/prompt-patroli'
 import LaporanPanel from '@/components/monitoring/LaporanPanel'
 import { ChevronLeftIcon } from '@/icons'
 
@@ -32,6 +39,27 @@ export default async function LaporanMonitoringPage({ params, searchParams }) {
       error = e.message
     }
   }
+
+  // Kotak prompt hanya untuk format yang mencentang "Tampilkan prompt
+  // Patroli Digital" di Format Rekap.
+  let prompt = null
+  if (formatDipakai?.tampilkanPrompt) {
+    const master = await getMasterPrompt()
+    let isuSebelumnya = []
+    try {
+      isuSebelumnya = await getIsuSebelumnya(sesi.tanggal, { hari: 3, batas: 5 })
+    } catch {
+      // Daftar isu hanya pelengkap — prompt tetap ditampilkan tanpa daftar.
+      isuSebelumnya = []
+    }
+    prompt = {
+      teks: master.teks
+        ? susunPromptPatroli({ master: master.teks, tanggal: sesi.tanggal, isuSebelumnya, hariIsu: 3 })
+        : null,
+      jumlahIsu: isuSebelumnya.length,
+    }
+  }
+
 
   return (
     <div>
@@ -64,6 +92,7 @@ export default async function LaporanMonitoringPage({ params, searchParams }) {
           formatAktif={formatDipakai?.id ?? null}
           teks={teks}
           error={error}
+          prompt={prompt}
         />
       )}
     </div>

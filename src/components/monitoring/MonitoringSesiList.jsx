@@ -1,8 +1,6 @@
 import Link from 'next/link'
 import { formatNumber } from '@/lib/format-number'
 
-// Server Component. Pemilih bulan pakai <Link>, bukan <select onChange> —
-// halaman tetap Server Component dan tetap jalan walau JS belum turun.
 
 const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
@@ -14,71 +12,27 @@ function labelTanggal(iso) {
   return `${hari}, ${d} ${BULAN[m - 1]} ${y}`
 }
 
-function labelBulan(bulan) {
-  const [y, m] = bulan.split('-').map(Number)
-  return `${BULAN[m - 1]} ${y}`
-}
+const KARTU = [
+  { label: 'Hari termonitor', nilai: (r) => `${r.jumlahSesi} / ${r.jumlahHari}` },
+  { label: 'Item media online', nilai: (r) => formatNumber(r.totalOnline) },
+  { label: 'Item media sosial', nilai: (r) => formatNumber(r.totalSosmed) },
+]
 
-const MonitoringSesiList = ({ daftar, ringkas, bulan, daftarBulan }) => {
+
+const MonitoringSesiList = ({ daftar, ringkas }) => {
   return (
     <div>
-      <div className="mb-5 grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
-        {[
-          { label: 'Hari termonitor', nilai: `${ringkas.jumlahSesi} / ${ringkas.jumlahHari}` },
-          { label: 'Item media online', nilai: formatNumber(ringkas.totalOnline) },
-          { label: 'Item media sosial', nilai: formatNumber(ringkas.totalSosmed) },
-          {
-            label: 'Perlu ditinjau',
-            nilai: formatNumber(ringkas.totalReview),
-            kelas: ringkas.totalReview > 0 ? 'text-warning-600 dark:text-warning-500' : undefined,
-          },
-        ].map((k) => {
-          const isi = (
-            <>
-              <span className="text-sm text-gray-500 dark:text-gray-400">{k.label}</span>
-              <h4 className={`mt-2 font-bold text-title-sm ${k.kelas ?? 'text-gray-800 dark:text-white'}`}>
-                {k.nilai}
-              </h4>
-            </>
-          )
-          const kelasKartu =
-            'rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3 md:p-5'
-
-          if (k.label === 'Perlu ditinjau' && ringkas.totalReview > 0) {
-            return (
-              <Link
-                key={k.label}
-                href={`/monitoring/review?bulan=${bulan}`}
-                className={`${kelasKartu} block transition hover:border-warning-400 hover:shadow-sm`}
-              >
-                {isi}
-                <span className="mt-1 block text-xs text-warning-600 dark:text-warning-500">
-                  Tinjau dan perbaiki
-                </span>
-              </Link>
-            )
-          }
-          return (
-            <div key={k.label} className={kelasKartu}>
-              {isi}
-            </div>
-          )
-        })}
-      </div>
-      
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        {daftarBulan.slice(0, 12).map((b) => (
-          <Link
-            key={b}
-            href={`/monitoring?bulan=${b}`}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-              b === bulan
-                ? 'bg-brand-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
-            }`}
+      <div className="mb-5 grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6">
+        {KARTU.map((k) => (
+          <div
+            key={k.label}
+            className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/3 md:p-5"
           >
-            {labelBulan(b)}
-          </Link>
+            <span className="text-sm text-gray-500 dark:text-gray-400">{k.label}</span>
+            <h4 className="mt-2 font-bold text-title-sm text-gray-800 dark:text-white">
+              {k.nilai(ringkas)}
+            </h4>
+          </div>
         ))}
       </div>
 
@@ -107,18 +61,7 @@ const MonitoringSesiList = ({ daftar, ringkas, bulan, daftarBulan }) => {
                       {labelTanggal(d.tanggal)}
                     </span>
                     <span className="mt-0.5 block text-xs text-gray-400 dark:text-gray-500">
-                      {d.adaSesi ? (
-                        <>
-                          {formatNumber(d.totalItem)} item
-                          {d.perluReview > 0 ? (
-                            <span className="text-warning-600 dark:text-warning-500">
-                              {' '}· {formatNumber(d.perluReview)} perlu ditinjau
-                            </span>
-                          ) : null}
-                        </>
-                      ) : (
-                        'Belum ada sesi'
-                      )}
+                      {d.adaSesi ? `${formatNumber(d.totalItem)} item` : 'Belum ada sesi'}
                     </span>
                   </td>
                   <td className="px-3 py-3.5 text-center text-sm text-gray-700 dark:text-gray-300">

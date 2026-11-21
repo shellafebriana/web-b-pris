@@ -130,7 +130,7 @@ export default function SesiDetailPanel({ sesi }) {
                 : 'bg-warning-50 text-warning-600 hover:bg-warning-100 dark:bg-warning-500/15 dark:text-orange-400'
             }`}
           >
-            {perluReview} perlu review
+            {perluReview} perlu ditinjau
           </button>
         ) : null}
         
@@ -170,7 +170,7 @@ export default function SesiDetailPanel({ sesi }) {
               onChange={() => setPilihan(semuaTercentang ? new Set() : new Set(tampilId))}
               className="size-4 accent-brand-500"
             />
-            Centang semua yang perlu review ({tampilId.length})
+            Centang semua yang perlu ditinjau ({tampilId.length})
           </label>
 
           {pilihan.size > 0 ? (
@@ -189,7 +189,7 @@ export default function SesiDetailPanel({ sesi }) {
       {tampil.length === 0 ? (
         <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-white/3">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {hanyaReview ? 'Tidak ada item yang perlu direview di kanal ini.' : 'Belum ada item di kanal ini.'}
+            {hanyaReview ? 'Tidak ada item yang perlu ditinjau di kanal ini.' : 'Belum ada item di kanal ini.'}
           </p>
         </div>
       ) : (
@@ -236,7 +236,7 @@ export default function SesiDetailPanel({ sesi }) {
                         </a>
                         {!it.isReviewed ? (
                           <span className="rounded-full bg-warning-50 px-2 py-0.5 font-medium text-warning-600 dark:bg-warning-500/15 dark:text-orange-400">
-                            perlu review
+                            perlu ditinjau
                           </span>
                         ) : null}
 

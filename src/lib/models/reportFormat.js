@@ -24,7 +24,7 @@ const KUNCI_DIKELOLA = [
   'jenis',
   'requiredPlatform', 'requiredFields', 'hasUnit', 'hasCount', 'countByPlatform',
   'groupBy', 'unitScope', 'platformListStyle', 'shuffle', 'sortByPriority',
-  'kanalAktif', 'tampilkanNihil', 'kategoriDikecualikan',
+  'kanalAktif', 'tampilkanNihil', 'kategoriDikecualikan','tampilkanPrompt',
 ]
 
 // ---------------------------------------------------------------------
@@ -148,6 +148,7 @@ async function bersihkanConfigMonitoring(raw) {
     kanalAktif,
     tampilkanNihil: raw.tampilkanNihil !== false,
     kategoriDikecualikan: daftarTeksUnik(raw.kategoriDikecualikan).filter((k) => kodeValid.has(k)),
+    tampilkanPrompt: raw.tampilkanPrompt === true,
   }
 }
 

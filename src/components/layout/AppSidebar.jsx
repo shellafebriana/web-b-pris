@@ -16,6 +16,7 @@ import {
   PieChartIcon,
   PlugInIcon,
   TableIcon,
+  TaskIcon,
   UserCircleIcon,
 } from "../../icons/index";
 
@@ -23,7 +24,13 @@ const navItems = []
 const navUtama = [
   { icon: <GridIcon />, name: "Dashboard", path: "/dashboard" },
   { icon: <TableIcon />, name: "Sesi Rekap", path: "/sesi-rekap" },
-  { icon: <PieChartIcon />, name: "Monitoring", path: "/monitoring" },
+  {
+    icon: <PieChartIcon />,
+    name: "Monitoring",
+    subItems: [
+      { name: "Daftar Sesi", path: "/monitoring" },
+    ],
+  },
   {
     icon: <DocsIcon />,
     name: "Laporan",
@@ -42,6 +49,13 @@ const navPengaturan = [
   { icon: <ListIcon />, name: "Unit", path: "/unit" },
   { icon: <PageIcon />, name: "Format Rekap", path: "/format-rekap" },
   { icon: <PlugInIcon />, name: "Link Prioritas", path: "/link-prioritas" },
+  {
+    icon: <TaskIcon />,
+    name: "Pengaturan Monitoring",
+    subItems: [
+      { name: "Prompt", path: "/pengaturan-monitoring/prompt" },
+    ],
+  },
 ];
 
 

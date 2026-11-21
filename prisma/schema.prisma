@@ -204,6 +204,10 @@ model MonitoringItem {
   isReviewed  Boolean            @default(false)
   urutan      Int                @default(0)
   createdAt   DateTime           @default(now())
+  caption      String?           @db.Text
+  likeCount    Int?
+  commentCount Int?
+  engagementAt DateTime?
   isu         MonitoringIsu?     @relation(fields: [isuId], references: [id])
   kategori    MonitoringKategori @relation(fields: [kategoriId], references: [id])
   sesi        MonitoringSesi     @relation(fields: [sesiId], references: [id], onDelete: Cascade)
@@ -279,6 +283,10 @@ model MonitoringKandidat {
   googleId   String?          @db.Text
   judulHash  String           @unique @db.VarChar(64)
   urlAsli    String?          @db.Text
+  caption      String?        @db.Text
+  likeCount    Int?
+  commentCount Int?
+  engagementAt DateTime?
   sumber     MonitoringSumber @relation(fields: [sumberId], references: [id], onDelete: Cascade)
 
   @@index([status, terbitAt])
